@@ -1,0 +1,157 @@
+{
+  "version": "2.5.0",
+  "flags": {},
+  "shapes": [
+    {
+      "kie_linking": [],
+      "label": "Pan_center_contour_area",
+      "score": 0.9104202389717102,
+      "points": [
+        [
+          386.0,
+          239.0
+        ],
+        [
+          296.0,
+          305.0
+        ],
+        [
+          207.0,
+          471.0
+        ],
+        [
+          203.0,
+          663.0
+        ],
+        [
+          279.0,
+          809.0
+        ],
+        [
+          321.0,
+          848.0
+        ],
+        [
+          383.0,
+          855.0
+        ],
+        [
+          403.0,
+          796.0
+        ],
+        [
+          450.0,
+          745.0
+        ],
+        [
+          487.0,
+          802.0
+        ],
+        [
+          497.0,
+          855.0
+        ],
+        [
+          533.0,
+          857.0
+        ],
+        [
+          624.0,
+          800.0
+        ],
+        [
+          723.0,
+          666.0
+        ],
+        [
+          730.0,
+          490.0
+        ],
+        [
+          643.0,
+          342.0
+        ],
+        [
+          577.2058823529411,
+          285.3235294117647
+        ],
+        [
+          498.0,
+          238.0
+        ]
+      ],
+      "group_id": null,
+      "description": null,
+      "difficult": false,
+      "shape_type": "polygon",
+      "flags": {},
+      "attributes": {}
+    },
+    {
+      "kie_linking": [],
+      "label": "Short_stem",
+      "score": 0.8259795308113098,
+      "points": [
+        [
+          433.0,
+          756.0
+        ],
+        [
+          419.0,
+          771.0
+        ],
+        [
+          393.0,
+          817.0
+        ],
+        [
+          389.0,
+          828.0
+        ],
+        [
+          389.0,
+          856.0
+        ],
+        [
+          396.0,
+          859.0
+        ],
+        [
+          410.0,
+          857.0
+        ],
+        [
+          419.0,
+          861.0
+        ],
+        [
+          497.0,
+          859.0
+        ],
+        [
+          492.0,
+          819.0
+        ],
+        [
+          486.0,
+          799.0
+        ],
+        [
+          460.0,
+          756.0
+        ]
+      ],
+      "group_id": null,
+      "description": null,
+      "difficult": false,
+      "shape_type": "polygon",
+      "flags": {},
+      "attributes": {}
+    }
+  ],
+  "imagePath": "2024-10-31_090411.lyf_yeqiu_cabbage_head_half_1.jpg",
+  "imageData": null,
+  "imageHeight": 1013,
+  "imageWidth": 905,
+  "description": "Merged from 2024-10-31_090411.lyf_yeqiu_cabbage_head_half_1.json and 2024-10-31_090411.lyf_yeqiu_cabbage_head_half_1.json"
+}
