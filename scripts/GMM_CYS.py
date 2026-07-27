@@ -1,0 +1,191 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.mixture import GaussianMixture
+from scipy.stats import norm
+import os
+import warnings
+
+# Ignore unnecessary warnings
+warnings.filterwarnings('ignore')
+
+# ===================== Global parameter configuration =====================
+DATA_FILE_PATH = r"#Enter the extracted phenotypic parameters#"
+
+# free mode:Let the data speak for itself,Automatically find the optimal number of clusters
+FORCE_COMPONENTS = None  
+MAX_COMPONENTS = 8
+
+# SCI Advanced drawing parameter settings
+plt.rcParams['font.family'] = 'Arial'
+plt.rcParams['axes.unicode_minus'] = False
+plt.rcParams['svg.fonttype'] = 'none' # Make sure to export SVG Post text is fully editable
+# ========================================================
+
+def find_optimal_gmm_and_thresholds(file_path):
+    print("⏳ [1/4] Phenotypic data is being read and rigorously cleaned...")
+    try:
+        df = pd.read_excel(file_path)
+    except FileNotFoundError:
+        print(f"❌ File not found '{file_path}'")
+        return
+
+    if 'Yellow_score' not in df.columns:
+        print("❌ Not found in datasheet 'Yellow_score' Column!")
+        return
+
+    df_clean = df.dropna(subset=['Yellow_score']).copy()
+    df_clean['Yellow_score'] = df_clean['Yellow_score'].clip(lower=0)
+    X = df_clean['Yellow_score'].values.reshape(-1, 1)
+
+    # ==========================================
+    # 1. Calculate BIC,Free evaluation of optimal number of clusters
+    # ==========================================
+    print(f"⏳ [2/4] Freely evaluating 1 Arrive {MAX_COMPONENTS} Gaussian distribution components (BIC criteria)...")
+    bics = []
+    models = []
+    
+    for k in range(1, MAX_COMPONENTS + 1):
+        gmm = GaussianMixture(n_components=k, random_state=42, n_init=15) # Increase the number of initializations to ensure stability
+        gmm.fit(X)
+        bics.append(gmm.bic(X))
+        models.append(gmm)
+        
+    optimal_k = np.argmin(bics) + 1
+    best_k = FORCE_COMPONENTS if FORCE_COMPONENTS is not None else optimal_k
+    print(f"🎯 Exploration completed!The optimal number of categories is K = {best_k}.")
+
+    best_gmm = models[best_k - 1]
+    
+    weights = best_gmm.weights_
+    means = best_gmm.means_.flatten()
+    variances = best_gmm.covariances_.flatten()
+    std_devs = np.sqrt(variances)
+
+    sorted_indices = np.argsort(means)
+    means = means[sorted_indices]
+    std_devs = std_devs[sorted_indices]
+    weights = weights[sorted_indices]
+
+    # ==========================================
+    # 2. Solve the intersection points of adjacent Gaussian distribution curves with high precision
+    # ==========================================
+    print("⏳ [3/4] Calculating fine math threshold (Symbol Jump Root Finding Method)...")
+    thresholds = []
+    x_max = X.max() * 1.05
+    x_grid = np.linspace(0, x_max, 20000)
+    
+    for i in range(best_k - 1):
+        pdf1 = weights[i] * norm.pdf(x_grid, means[i], std_devs[i])
+        pdf2 = weights[i+1] * norm.pdf(x_grid, means[i+1], std_devs[i+1])
+        
+        diff = pdf1 - pdf2
+        crossings = np.where(np.diff(np.sign(diff)))[0]
+        
+        if len(crossings) > 0:
+            midpoint = (means[i] + means[i+1]) / 2.0
+            closest_idx = crossings[np.argmin(np.abs(x_grid[crossings] - midpoint))]
+            intersection_x = x_grid[closest_idx]
+        else:
+            intersection_x = (means[i] + means[i+1]) / 2.0
+            
+        thresholds.append(intersection_x)
+        print(f"   ➤ mathematical threshold T{i+1}: {intersection_x:.4f}")
+
+    # ==========================================
+    # 3. Export new data table
+    # ==========================================
+    print("⏳ [4/4] Smart marking and exporting...")
+    bins = [-np.inf] + thresholds + [np.inf]
+    labels = range(1, best_k + 1)
+    df_clean['Scientific_Grade'] = pd.cut(df_clean['Yellow_score'], bins=bins, labels=labels)
+    
+    output_excel = file_path.replace('.xlsx', f'_GMM_Final_{best_k}Classes.xlsx')
+    df_clean.to_excel(output_excel, index=False)
+
+    # ==========================================
+    # 4. draw top level SCI Multidimensional verification diagram
+    # ==========================================
+    fig, axes = plt.subplots(1, 2, figsize=(14, 6)) # Slightly increase the height to make the proportions more harmonious
+
+    # ---- (A) BIC Model selection curve ----
+    ax1 = axes[0]
+    # add SCI Standard Panel label (A)
+    ax1.text(-0.12, 1.05, '(A)', transform=ax1.transAxes, fontsize=18, fontweight='bold', va='top')
+    
+    ax1.plot(range(1, MAX_COMPONENTS + 1), bics, marker='o', linestyle='-', color='#2C7BB6', linewidth=2.5, markersize=8)
+    ax1.plot(best_k, bics[best_k-1], marker='o', color='#D7191C', markersize=12, zorder=5) # Highlight the best points
+    ax1.axvline(x=best_k, color='#D7191C', linestyle='--', linewidth=1.8, label=f'Optimal K = {best_k}')
+    
+    ax1.set_title('Bayesian Information Criterion (BIC)', fontsize=16, fontweight='bold', pad=15)
+    ax1.set_xlabel('Number of Gaussian Components (K)', fontsize=14)
+    ax1.set_ylabel('BIC Score', fontsize=14)
+    ax1.set_xticks(range(1, MAX_COMPONENTS + 1))
+    ax1.set_xlim(0.5, MAX_COMPONENTS + 0.5)
+    
+    ax1.tick_params(axis='both', which='major', labelsize=12)
+    ax1.grid(True, linestyle='--', alpha=0.3)
+    ax1.legend(fontsize=12, frameon=False)
+    
+    sns.despine(ax=ax1, top=True, right=True)
+    ax1.spines['left'].set_linewidth(1.5)
+    ax1.spines['bottom'].set_linewidth(1.5)
+
+    # ---- (B) GMM Distribution and Threshold ----
+    ax2 = axes[1]
+    
+    ax2.text(-0.12, 1.05, '(B)', transform=ax2.transAxes, fontsize=18, fontweight='bold', va='top')
+    
+    sns.histplot(df_clean['Yellow_score'], bins=65, stat='density', color='#D3D3D3', edgecolor='white', alpha=0.8, ax=ax2, label='Empirical Distribution')
+    
+    # Exclusively customized advanced gradient color system (Gray green -> Soft yellow -> golden -> Orange -> crimson)
+    base_colors = ['#8BA888', '#F2DD72', '#F2B705', '#F27405', '#BF212E', '#9467bd', '#8c564b']
+    colors = base_colors[:best_k]
+    
+    for i in range(best_k):
+        pdf = weights[i] * norm.pdf(x_grid, means[i], std_devs[i])
+        ax2.plot(x_grid, pdf, color=colors[i], linewidth=3, alpha=0.9, label=f'Subpopulation {i+1}')
+        ax2.fill_between(x_grid, pdf, alpha=0.2, color=colors[i])
+
+    # dynamic increase Y Leave the top of the shaft blank (Headroom),prevent crowding
+    current_y_max = ax2.get_ylim()[1]
+    ax2.set_ylim(0, current_y_max * 1.15) 
+    y_max = ax2.get_ylim()[1]
+
+    for i, t in enumerate(thresholds):
+        ax2.axvline(x=t, ymin=0, ymax=1, color='#404040', linestyle=':', linewidth=2)
+        # Add a callout with a white translucent bottom border,Eliminate visual distractions
+        ax2.text(
+            t + 0.008, y_max * 0.88, 
+            r'$T_{' + str(i+1) + r'} = ' + f'{t:.3f}$', # pure LaTeX subscript rendering
+            color='#222222', fontweight='bold', fontsize=12,
+            bbox=dict(facecolor='white', edgecolor='none', alpha=0.7, pad=2)
+        )
+
+    ax2.set_title(f'GMM Subpopulations & Derived Thresholds', fontsize=16, fontweight='bold', pad=15)
+    ax2.set_xlabel('Comprehensive Yellow Score (CYS)', fontsize=14)
+    ax2.set_ylabel('Probability Density', fontsize=14)
+    ax2.legend(fontsize=11, loc='upper right', frameon=False)
+    
+    ax2.set_xlim(left=0, right=x_max)
+    ax2.tick_params(axis='both', which='major', labelsize=12)
+    
+    sns.despine(ax=ax2, top=True, right=True)
+    ax2.spines['left'].set_linewidth(1.5)
+    ax2.spines['bottom'].set_linewidth(1.5)
+    
+    plt.tight_layout()
+    
+    # Export high-precision vector graphics
+    out_dir = os.path.dirname(file_path)
+    out_svg = os.path.join(out_dir, f'GMM_Final_Analysis.svg')
+    plt.savefig(out_svg, format='svg', bbox_inches='tight')
+    # Also export a high-definition PNG for quick browsing
+    plt.savefig(out_svg.replace('.svg', '.png'), format='png', dpi=600, bbox_inches='tight')
+    
+    print(f"\n🎉 Chart drawing completed!")
+    print(f"👉 The vector image has been saved as: {os.path.basename(out_svg)}")
+
+if __name__ == "__main__":
+    find_optimal_gmm_and_thresholds(DATA_FILE_PATH)
