@@ -2,17 +2,17 @@
   <img width="85%" alt="Yeqiu_predict" src="https://github.com/user-attachments/assets/2f37b9a9-11a8-4734-aed9-fb5d39ef488f" />
 </p>
 
-<!-- 2. 下方 3 张图片一字排开 -->
+<!-- 2. 下方 3 张动图：统一高度对齐排版 -->
 <table border="0">
   <tr>
-    <td width="33%" align="center">
-      <img src="https://github.com/user-attachments/assets/491e65cc-eb52-494b-aa68-cd3a766d9327" alt="Yeqiu_predict_3" />
+    <td width="33%" align="center" valign="middle">
+      <img height="250px" src="https://github.com/user-attachments/assets/491e65cc-eb52-494b-aa68-cd3a766d9327" alt="Yeqiu_predict_3" />
     </td>
-    <td width="33%" align="center">
-      <img src="https://github.com/user-attachments/assets/efe18338-9b2b-43fe-8f9d-ff1cc1ae6141" alt="Yeqiu_predict_2" />
+    <td width="33%" align="center" valign="middle">
+      <img height="250px" src="https://github.com/user-attachments/assets/efe18338-9b2b-43fe-8f9d-ff1cc1ae6141" alt="Yeqiu_predict_2" />
     </td>
-    <td width="33%" align="center">
-      <img src="https://github.com/user-attachments/assets/9f7cceca-dcd7-404b-8321-dbfbd9706ac7" alt="Yeqiu_predict_1" />
+    <td width="33%" align="center" valign="middle">
+      <img height="250px" src="https://github.com/user-attachments/assets/9f7cceca-dcd7-404b-8321-dbfbd9706ac7" alt="Yeqiu_predict_1" />
     </td>
   </tr>
 </table>
