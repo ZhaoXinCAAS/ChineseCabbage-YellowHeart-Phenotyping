@@ -1,9 +1,16 @@
 # Quantitative Grading of the Yellow-Heart Trait in Chinese Cabbage via Multidimensional Color Space Analysis
----
+
+## Batch Segmentation with SAM 3 (Text-prompt)
+Utilizing SAM 3 with the text prompt "cabbage" to automatically perform high-throughput extraction of leaf-heading region masks from cross-section images.
+
 <p align="center">
   <img width="85%" alt="Yeqiu_predict" src="https://github.com/user-attachments/assets/2f37b9a9-11a8-4734-aed9-fb5d39ef488f" />
 </p>
----
+
+## Chinese cabbage and yellow-heart region segmentation
+Automated Segmentation of Head Region and Yellow-Heart Trait
+Figure: Demonstration of annotated head region masks and automated extraction of internal yellow-heart tissues.
+
 <!-- 2. 下方 3 张动图：统一高度对齐排版 -->
 <table border="0">
   <tr>
@@ -18,7 +25,9 @@
     </td>
   </tr>
 </table>
----
+
+<hr style="height: 1px; border: none; background-color: #e1e4e8; margin: 20px 0;" />
+
 ## Description
 Open-source Python scripts and phenotypic pipelines for automated yellow-heart region segmentation, feature extraction, and multidimensional color space quantification, enabling objective quantitative grading of Chinese cabbage yellow-heart traits based on the Comprehensive Yellow Score (CYS).
 1. Threshold Adjustment for Illumination Variations: 
