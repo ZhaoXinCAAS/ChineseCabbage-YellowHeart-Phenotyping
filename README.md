@@ -51,6 +51,8 @@ python Yellow_heart_region_segmentation_json.py
 ## Chinese cabbage and yellow-heart region segmentation:
 Automated Segmentation of Head Region and Yellow-Heart Trait
 Figure: Demonstration of annotated head region masks and automated extraction of internal yellow-heart tissues.
+### Input Data: Raw images located in `./samples_images/` (Demo) or `./data/Raw_images/` (Full Dataset)).
+### Output Data: SAM 3 predicted masks and JSON annotations saved in `./results/SAM3_predicted/` (Demo) or `./data/SAM3_predicted/` (Full Dataset).
 
 <!-- 2. 下方 3 张动图：统一高度对齐排版 -->
 <table border="0">
