@@ -21,6 +21,7 @@ pip install -r requirements.txt
 ```
 ## 1. Batch Segmentation with SAM 3 (Text-prompt):
 Utilizing SAM 3 with the text prompt "cabbage" to automatically perform high-throughput extraction of leaf-heading region masks from cross-section images.
+* **Tools & Models**: The pre-trained ONNX model files and X-AnyLabeling executable software are provided in `./data/SAM3_onnx/`.
 * **Input**: `./samples_images/results/Raw_images/` (Demo) | `./data/Raw_images/` (Full Dataset)
 * **Output**: `./samples_images/results/SAM3_predicted/` (Demo) | `./data/SAM3_predicted/` (Full Dataset)
 <p align="center">
