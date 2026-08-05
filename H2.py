@@ -10,8 +10,8 @@ from scipy.stats import hmean
 warnings.filterwarnings('ignore')
 
 # ===================== 1. 全局配置与文件路径 =====================
-DATA_FILE_PATH = r"C:\Users\Lenovo\Desktop\test\ccc.xlsx"
-OUTPUT_DIR = r"C:\Users\Lenovo\Desktop\test\H2"
+DATA_FILE_PATH = r"./samples_images/results/CYS_1319.xlsx"
+OUTPUT_DIR = r"./samples_images/results/Plot/"
 
 # 分组列（基因型/品系 ID，对应论文中的 germplasm ID / i-th accession）
 GENOTYPE_COL = 'QR'
