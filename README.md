@@ -21,8 +21,8 @@ pip install -r requirements.txt
 ```
 ## 1. Batch Segmentation with SAM 3 (Text-prompt):
 Utilizing SAM 3 with the text prompt "cabbage" to automatically perform high-throughput extraction of leaf-heading region masks from cross-section images.
-* **Input**: `./results/Raw_images/` (Demo) | `./data/Raw_images/` (Full Dataset)
-* **Output**: `./results/SAM3_predicted/` (Demo) | `./data/SAM3_predicted/` (Full Dataset)
+* **Input**: `./samples_images/results/Raw_images/` (Demo) | `./data/Raw_images/` (Full Dataset)
+* **Output**: `./samples_images/results/SAM3_predicted/` (Demo) | `./data/SAM3_predicted/` (Full Dataset)
 <p align="center">
   <img width="85%" alt="Yeqiu_predict" src="https://github.com/user-attachments/assets/2f37b9a9-11a8-4734-aed9-fb5d39ef488f" />
 </p>
@@ -32,8 +32,8 @@ Utilizing SAM 3 with the text prompt "cabbage" to automatically perform high-thr
 ```bash
 python Crop.py
 ```
-* **Input**: `./results/SAM3_predicted/` (Demo) | `./data/SAM3_predicted/` (Full Dataset)
-* **Output**: `./results/annotations_head_region/` (Demo) | `./data/annotations_head_region/` (Full Dataset)
+* **Input**: `./samples_images/results/SAM3_predicted/` (Demo) | `./data/SAM3_predicted/` (Full Dataset)
+* **Output**: `./samples_images/results/annotations_head_region/` (Demo) | `./data/annotations_head_region/` (Full Dataset)
 
 ## 3. Manual Annotation of Chinese cabbage head region：
 Use [X-AnyLabeling](https://github.com/CVHub520/X-AnyLabeling) to manually annotate the precise boundaries of both the head region and the short stem for each cropped single-cabbage cross-section image. The generated `.json` files are used for subsequent phenotypic feature and color analysis.
@@ -42,8 +42,8 @@ Use [X-AnyLabeling](https://github.com/CVHub520/X-AnyLabeling) to manually annot
 * **Label Classes**: 
   * `Pan_center_contour_area` (Polygon annotation for the main leaf-head region)
   * `Short_stem` (Polygon annotation for the internal short stem)
-* **Input**: `./results/annotations_head_region/` (Demo) | `./data/annotations_head_region/` (Full Dataset)
-* **Output**: `./results/annotations_head_region/` (Demo) | `./data/annotations_head_region/` (Full Dataset)
+* **Input**: `./samples_images/results/annotations_head_region/` (Demo) | `./data/annotations_head_region/` (Full Dataset)
+* **Output**: `./samples_images/results/annotations_head_region/` (Demo) | `./data/annotations_head_region/` (Full Dataset)
 
 ## 4. Automated Yellow-Heart Region Extraction
 
@@ -51,8 +51,8 @@ Automated algorithm (`Yellow_heart_region_segmentation_json.py`) is used to extr
 ```bash
 python Yellow_heart_region_segmentation_json.py
 ```
-* **Input**: `./results/annotations_head_region` (Demo) | `./data/annotations_head_region/` (Full Dataset)
-* **Output**: `./results/Auto_segment_Yellow_heart/` (Demo) | `./data/Auto_segment_Yellow_heart/` (Full Dataset)
+* **Input**: `./samples_images/results/annotations_head_region` (Demo) | `./data/annotations_head_region/` (Full Dataset)
+* **Output**: `./samples_images/results/Auto_segment_Yellow_heart/` (Demo) | `./data/Auto_segment_Yellow_heart/` (Full Dataset)
 
 ## 5. Chinese cabbage and yellow-heart region segmentation:
 Automated Segmentation of Head Region and Yellow-Heart Trait
@@ -80,14 +80,16 @@ Figure: Demonstration of annotated head region masks and automated extraction of
 ```bash
 python Yellow_color_features_extract.py
 ```
-* **Input**: `./results/annotations_head_region` (Demo) | `./data/annotations_head_region/` (Full Dataset)
-* **Output**: `./results/Auto_segment_Yellow_heart/` (Demo) | `./data/Auto_segment_Yellow_heart/` (Full Dataset)
+* **Input**: `./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/` (Full Dataset)
+* **Output**: `./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/roi_10_color_features_with_ratio.xlsx` (Full Dataset)
 
 ## 7. Phenotypic Data Min-Max Normalization:
 `Min_Max.py` performs Min-Max normalization on the extracted raw phenotypic trait dataset to scale all feature values (e.g., area ratio and color parameters) into the range of [0, 1], eliminating scale differences for downstream analysis.
 ```bash
 python Min_Max.py
 ```
+* **Input**: `./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/roi_10_color_features_with_ratio.xlsx"` (Full Dataset)
+* **Output**: `./samples_images/results/normalized_data_1319.xlsx` (Demo)
 
 ## 8. Fisher Discriminant Score Calculation:
 `Fisher_scores.py` computes the Fisher discriminant score for each extracted phenotypic feature, evaluating its power to differentiate between distinct yellow-heart phenotype categories.
@@ -95,13 +97,22 @@ python Min_Max.py
 python Fisher_scores.py
 ```
 
+* **Input**: `./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/roi_10_color_features_with_ratio.xlsx"` (Full Dataset) and './data/Fisher_score_data'
+* **Output**: `./samples_images/results/fisher_weights_418.xlsx` (Demo)
+
 ## 9. GMM-Based Color Trait Modeling and Distribution Visualization:
 `GMM_CYS.py` applies Gaussian Mixture Models (GMM) to model the CYS color distribution within heading Chinese cabbage yellow-heart regions and generates corresponding probability density distribution plots.
 ```bash
 python GMM_CYS.py
 ```
 
+* **Input**: `./samples_images/results/CYS_1319.xlsx'
+* **Output**: `./samples_images/results/Plot` (Demo)
+
 ## 10. Broad-Sense Heritability Calculation:
 ```bash
 python H2.py
 ```
+
+* **Input**: `./samples_images/results/CYS_1319.xlsx'
+* **Output**: `./samples_images/results/Plot` (Demo)
