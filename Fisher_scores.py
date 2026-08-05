@@ -4,11 +4,11 @@ import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 
 # ===================== 配置区 =====================
-ROI_FEATURES_FILE = r"H:\Cabbage_Heading_Segmentation_Dataset\Github\data\418_Grade_3\roi_10_color_features_with_ratio.xlsx"
-LABELED_ROOT = r"H:\Cabbage_Heading_Segmentation_Dataset\Github\data\418_Grade_3"
+ROI_FEATURES_FILE = r"./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/roi_10_color_features_with_ratio.xlsx"
+LABELED_ROOT = r"./data/Fisher_score_data/"
 
 # 统计表格导出的目标 Excel 路径
-OUTPUT_METRICS_EXCEL = r"H:\Cabbage_Heading_Segmentation_Dataset\Github\data\418_Grade_3\fisher_weights.xlsx"
+OUTPUT_METRICS_EXCEL = r"./samples_images/results/fisher_weights_418.xlsx"
 
 FEATURES = [
     "H_circular_mean_deg", "S_mean", "V_mean", "L_mean", 
