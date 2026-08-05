@@ -9,7 +9,7 @@ import pandas as pd
 
 # ---------------------- 核心配置 ----------------------
 # 标注 JSON 和图像所在的文件夹路径
-INPUT_FOLDER = r"H:\Cabbage_Heading_Segmentation_Dataset\Github\data\Auto_segment_Yellow_heart\True_Yellow_heart\json"
+INPUT_FOLDER = r"./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/"
 # 最终结果输出路径
 OUTPUT_XLSX = os.path.join(INPUT_FOLDER, "roi_10_color_features_with_ratio.xlsx")
 
