@@ -22,8 +22,8 @@ pip install -r requirements.txt
 ## 1. Batch Segmentation with SAM 3 (Text-prompt):
 Utilizing SAM 3 with the text prompt "cabbage" to automatically perform high-throughput extraction of leaf-heading region masks from cross-section images.
 * **Tools & Models**: The pre-trained ONNX model files and X-AnyLabeling executable software are provided in `./data/SAM3_onnx/`.
-* **Input**: `./samples_images/results/Raw_images/` (Demo) | `./data/Raw_images/` (Full Dataset)
-* **Output**: `./samples_images/results/SAM3_predicted/` (Demo) | `./data/SAM3_predicted/` (Full Dataset)
+* **Input**: './samples_images/results/Raw_images/' (Demo) | './data/Raw_images/' (Full Dataset)
+* **Output**: `./samples_images/results/SAM3_predicted/' (Demo) | './data/SAM3_predicted/' (Full Dataset)
 <p align="center">
   <img width="85%" alt="Yeqiu_predict" src="https://github.com/user-attachments/assets/2f37b9a9-11a8-4734-aed9-fb5d39ef488f" />
 </p>
@@ -33,8 +33,8 @@ Utilizing SAM 3 with the text prompt "cabbage" to automatically perform high-thr
 ```bash
 python Crop.py
 ```
-* **Input**: `./samples_images/results/SAM3_predicted/` (Demo) | `./data/SAM3_predicted/` (Full Dataset)
-* **Output**: `./samples_images/results/annotations_head_region/` (Demo) | `./data/annotations_head_region/` (Full Dataset)
+* **Input**: './samples_images/results/SAM3_predicted/' (Demo) | './data/SAM3_predicted/' (Full Dataset)
+* **Output**: './samples_images/results/annotations_head_region/' (Demo) | './data/annotations_head_region/' (Full Dataset)
 
 ## 3. Manual Annotation of Chinese cabbage head region：
 Use [X-AnyLabeling](https://github.com/CVHub520/X-AnyLabeling) to manually annotate the precise boundaries of both the head region and the short stem for each cropped single-cabbage cross-section image. The generated `.json` files are used for subsequent phenotypic feature and color analysis.
@@ -97,7 +97,7 @@ python Min_Max.py
 python Fisher_scores.py
 ```
 
-* **Input**: `./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/roi_10_color_features_with_ratio.xlsx"` (Full Dataset) and './data/Fisher_score_data/'
+* **Input**: `./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/roi_10_color_features_with_ratio.xlsx` (Full Dataset) and `./data/Fisher_score_data/`
 * **Output**: `./samples_images/results/fisher_weights_418.xlsx` (Demo)
 
 ## 9. GMM-Based Color Trait Modeling and Distribution Visualization:
@@ -106,7 +106,7 @@ python Fisher_scores.py
 python GMM_CYS.py
 ```
 
-* **Input**: `./samples_images/results/CYS_1319.xlsx'
+* **Input**: `./samples_images/results/CYS_1319.xlsx`
 * **Output**: `./samples_images/results/Plot/` (Demo)
 
 ## 10. Broad-Sense Heritability Calculation:
@@ -114,5 +114,5 @@ python GMM_CYS.py
 python H2.py
 ```
 
-* **Input**: './samples_images/results/CYS_1319.xlsx'
-* **Output**: './samples_images/results/Plot/' (Demo)
+* **Input**: `./samples_images/results/CYS_1319.xlsx`
+* **Output**: `./samples_images/results/Plot/` (Demo)
