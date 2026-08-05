@@ -66,7 +66,13 @@ Figure: Demonstration of annotated head region masks and automated extraction of
 <hr style="height: 1px; border: none; background-color: #e1e4e8; margin: 20px 0;" />
 
 ## Yellow-Heart Phenotypic Trait Extraction:
-`Yellow_color_features_extract.py` is used to automatically extract quantitative phenotypic traits (yellow-heart area ratio and 10 color space features) from segmented cabbage head regions.
+`Yellow_color_features_extract.py` is used to automatically extract quantitative phenotypic traits (yellow-heart area ratio and 10 color space features) from segmented Chinese cabbage head regions.
 ```bash
 python Yellow_color_features_extract.py
+```
+
+## Phenotypic Data Min-Max Normalization:
+`Min_Max.py` performs Min-Max normalization on the extracted raw phenotypic trait dataset to scale all feature values (e.g., area ratio and color parameters) into the range of $[0, 1]$, eliminating scale differences for downstream analysis.
+```bash
+python Min_Max.py
 ```
