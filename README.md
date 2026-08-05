@@ -41,7 +41,7 @@ Use [X-AnyLabeling](https://github.com/CVHub520/X-AnyLabeling) to manually annot
 
 Automated algorithm (`Yellow_heart_region_segmentation_json.py`) is used to extract the internal yellow-heart tissue within the annotated leaf-heading region (`Pan_center_contour_area`), excluding the short stem area.
 ```bash
-pip 
+pip Yellow_heart_region_segmentation_json.py
 ```
 
 ## Chinese cabbage and yellow-heart region segmentation:
