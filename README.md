@@ -1,6 +1,6 @@
 # Quantitative Grading of the Yellow-Heart Trait in Chinese Cabbage via Multidimensional Color Space Analysis
 
-## Description
+## Description:
 Open-source Python scripts and phenotypic pipelines for automated yellow-heart region segmentation, feature extraction, and multidimensional color space quantification, enabling objective quantitative grading of Chinese cabbage yellow-heart traits based on the Comprehensive Yellow Score (CYS).
 1. Threshold Adjustment for Illumination Variations: 
 Due to potential variations in image lighting and shooting environments, the threshold values for the Excess Red Index (ExR) and CIELAB color space b* may require empirical tuning. Users are encouraged to adjust these parameters flexibly based on their specific image datasets and actual experimental conditions.
@@ -9,26 +9,26 @@ For automated batch segmentation across diverse crop images, users can leverage 
 3. Scope and Methodology Disclaimer: 
 This repository provides the fundamental experimental framework and implementation scripts—including yellow-heart region segmentation, multidimensional color trait extraction, Gaussian Mixture Model (GMM) grading, and broad-sense heritability calculation—designed to offer a methodological reference and workflow pipeline for researchers. Specific parameter configurations, extracted phenotypic features, and final grading thresholds should be carefully calibrated and validated according to the specific biological characteristics of the target crop under investigation.
 
-## Requirements
+## Requirements:
 
 Install dependencies using pip
 ```bash
 pip install -r requirements.txt
 ```
-## Batch Segmentation with SAM 3 (Text-prompt)
+## Batch Segmentation with SAM 3 (Text-prompt):
 Utilizing SAM 3 with the text prompt "cabbage" to automatically perform high-throughput extraction of leaf-heading region masks from cross-section images.
 
 <p align="center">
   <img width="85%" alt="Yeqiu_predict" src="https://github.com/user-attachments/assets/2f37b9a9-11a8-4734-aed9-fb5d39ef488f" />
 </p>
 
-## Individual Chinese cabbage Head Cropping & Extraction
+## Individual Chinese cabbage Head Cropping & Extraction:
 `Crop.py` is used to crop individual cabbage head ROIs from raw images based on JSON annotations.
 ```bash
 pip install Crop.py
 ```
 
-## Chinese cabbage and yellow-heart region segmentation
+## Chinese cabbage and yellow-heart region segmentation:
 Automated Segmentation of Head Region and Yellow-Heart Trait
 Figure: Demonstration of annotated head region masks and automated extraction of internal yellow-heart tissues.
 
