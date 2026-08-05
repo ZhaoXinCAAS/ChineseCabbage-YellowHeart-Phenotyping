@@ -5,11 +5,11 @@ import os
 
 # ===================== 配置参数 / Path Configuration =====================
 # [默认路径] 指向 GitHub 仓库自带的测试集 (克隆项目后可直接运行 Demo)
-json_folder_path = "./samples_images"
-image_folder_path = "./samples_images"
+json_folder_path = "./samples_images/results/SAM3_predicted"
+image_folder_path = "./samples_images/results/SAM3_predicted"
 
 # 结果保存输出路径
-output_root_dir = "./results/CROP_black"
+output_root_dir = "./samples_images/results/annotations_head_region"
 
 # -------------------------------------------------------------------------
 # [全量数据集运行指南 / Full Dataset Instructions]
