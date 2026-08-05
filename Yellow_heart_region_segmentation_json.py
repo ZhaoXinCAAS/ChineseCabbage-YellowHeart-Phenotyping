@@ -6,9 +6,9 @@ from pathlib import Path
 
 # ===================== Configuration items / Path Configuration =====================
 # [default path] point to GitHub Comes with the warehouse Mini test set (Can be run directly Demo)
-INPUT_DIR = r"./samples_images" 
-OUTPUT_DIR = r"./samples_images/CROP_black/Annotate/Visualisation"
-JSON_OUTPUT_DIR = r"./samples_images/CROP_black/Annotate/json"
+INPUT_DIR = r"./samples_images/results/annotations_head_region" 
+OUTPUT_DIR = r"./samples_images/results/Auto_segment_Yellow_heart/"
+JSON_OUTPUT_DIR = r"./samples_images/results/Auto_segment_Yellow_heart/json"
 
 # -----------------------------------------------------------------------
 # [Full data set operation guide / Full Dataset Instructions]

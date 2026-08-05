@@ -11,7 +11,8 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # ===================== Global parameter configuration =====================
-DATA_FILE_PATH = r"#Enter the extracted phenotypic parameters#"
+DATA_FILE_PATH = r"./samples_images/results/CYS_1319.xlsx"
+OUTPUT_DIR = r"./samples_images/results/Plot"  # Unified output folder path
 
 # free mode:Let the data speak for itself,Automatically find the optimal number of clusters
 FORCE_COMPONENTS = None  
@@ -34,6 +35,9 @@ def find_optimal_gmm_and_thresholds(file_path):
     if 'Yellow_score' not in df.columns:
         print("❌ Not found in datasheet 'Yellow_score' Column!")
         return
+
+    # Automatically ensure output folder exists
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     df_clean = df.dropna(subset=['Yellow_score']).copy()
     df_clean['Yellow_score'] = df_clean['Yellow_score'].clip(lower=0)
@@ -91,7 +95,7 @@ def find_optimal_gmm_and_thresholds(file_path):
             intersection_x = (means[i] + means[i+1]) / 2.0
             
         thresholds.append(intersection_x)
-        print(f"   ➤ mathematical threshold T{i+1}: {intersection_x:.4f}")
+        print(f"    ➤ mathematical threshold T{i+1}: {intersection_x:.4f}")
 
     # ==========================================
     # 3. Export new data table
@@ -101,7 +105,8 @@ def find_optimal_gmm_and_thresholds(file_path):
     labels = range(1, best_k + 1)
     df_clean['Scientific_Grade'] = pd.cut(df_clean['Yellow_score'], bins=bins, labels=labels)
     
-    output_excel = file_path.replace('.xlsx', f'_GMM_Final_{best_k}Classes.xlsx')
+    excel_name = os.path.basename(file_path).replace('.xlsx', f'_GMM_Final_{best_k}Classes.xlsx')
+    output_excel = os.path.join(OUTPUT_DIR, excel_name)
     df_clean.to_excel(output_excel, index=False)
 
     # ==========================================
@@ -177,15 +182,17 @@ def find_optimal_gmm_and_thresholds(file_path):
     
     plt.tight_layout()
     
-    # Export high-precision vector graphics
-    out_dir = os.path.dirname(file_path)
-    out_svg = os.path.join(out_dir, f'GMM_Final_Analysis.svg')
-    plt.savefig(out_svg, format='svg', bbox_inches='tight')
-    # Also export a high-definition PNG for quick browsing
-    plt.savefig(out_svg.replace('.svg', '.png'), format='png', dpi=600, bbox_inches='tight')
+    # Export high-precision vector graphics and HD PNG to the specified OUTPUT_DIR Directory
+    out_svg = os.path.join(OUTPUT_DIR, 'GMM_Final_Analysis.svg')
+    out_png = os.path.join(OUTPUT_DIR, 'GMM_Final_Analysis.png')
     
-    print(f"\n🎉 Chart drawing completed!")
-    print(f"👉 The vector image has been saved as: {os.path.basename(out_svg)}")
+    plt.savefig(out_svg, format='svg', bbox_inches='tight')
+    plt.savefig(out_png, format='png', dpi=600, bbox_inches='tight')
+    
+    print(f"\n🎉 Processing and drawing complete!")
+    print(f"👉 mark Excel File saved to: {output_excel}")
+    print(f"👉 Vector image saved to: {out_svg}")
+    print(f"👉 HD PNG Saved to: {out_png}")
 
 if __name__ == "__main__":
     find_optimal_gmm_and_thresholds(DATA_FILE_PATH)

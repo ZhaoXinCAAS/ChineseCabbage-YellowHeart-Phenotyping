@@ -9,7 +9,7 @@ import pandas as pd
 
 # ---------------------- Core configuration ----------------------
 # mark JSON and the folder path where the image is located
-INPUT_FOLDER = r"H:\Cabbage_Heading_Segmentation_Dataset\Github\data\Auto_segment_Yellow_heart\True_Yellow_heart\json"
+INPUT_FOLDER = r"./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/"
 # Final result output path
 OUTPUT_XLSX = os.path.join(INPUT_FOLDER, "roi_10_color_features_with_ratio.xlsx")
 

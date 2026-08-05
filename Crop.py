@@ -5,11 +5,11 @@ import os
 
 # ===================== Configuration parameters / Path Configuration =====================
 # [default path] point to GitHub The test set that comes with the warehouse (You can run it directly after cloning the project Demo)
-json_folder_path = "./samples_images"
-image_folder_path = "./samples_images"
+json_folder_path = "./samples_images/results/SAM3_predicted"
+image_folder_path = "./samples_images/results/SAM3_predicted"
 
 # Results save output path
-output_root_dir = "./results/CROP_black"
+output_root_dir = "./samples_images/results/annotations_head_region"
 
 # -------------------------------------------------------------------------
 # [Full data set operation guide / Full Dataset Instructions]
