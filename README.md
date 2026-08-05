@@ -114,5 +114,5 @@ python GMM_CYS.py
 python H2.py
 ```
 
-* **Input**: `./samples_images/results/CYS_1319.xlsx'
-* **Output**: `./samples_images/results/Plot/` (Demo)
+* **Input**: './samples_images/results/CYS_1319.xlsx'
+* **Output**: './samples_images/results/Plot/' (Demo)
