@@ -76,3 +76,9 @@ python Yellow_color_features_extract.py
 ```bash
 python Min_Max.py
 ```
+
+## Fisher Discriminant Score Calculation:
+`Fisher_scores.py` computes the Fisher discriminant score for each extracted phenotypic feature, evaluating its power to differentiate between distinct yellow-heart phenotype categories.
+```bash
+python Fisher_scores.py
+```
