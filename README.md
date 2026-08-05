@@ -21,10 +21,8 @@ pip install -r requirements.txt
 ```
 ## 1. Batch Segmentation with SAM 3 (Text-prompt):
 Utilizing SAM 3 with the text prompt "cabbage" to automatically perform high-throughput extraction of leaf-heading region masks from cross-section images.
-### Input Data: 
-Raw images located in `./samples_images/` (Demo) or `./data/Raw_images/` (Full Dataset).
-### Output Data: 
-SAM 3 predicted masks and JSON annotations saved in `./results/SAM3_predicted/` (Demo) or `./data/SAM3_predicted/` (Full Dataset).
+* **Input**: `./results/Raw_images/` (Demo) | `./data/Raw_images/` (Full Dataset)
+* **Output**: `./results/SAM3_predicted/` (Demo) | `./data/SAM3_predicted/` (Full Dataset)
 <p align="center">
   <img width="85%" alt="Yeqiu_predict" src="https://github.com/user-attachments/assets/2f37b9a9-11a8-4734-aed9-fb5d39ef488f" />
 </p>
@@ -34,10 +32,8 @@ SAM 3 predicted masks and JSON annotations saved in `./results/SAM3_predicted/` 
 ```bash
 python Crop.py
 ```
-### Input Data: 
-Raw images located in `./results/SAM3_predicted/` (Demo) or `./data/SAM3_predicted/` (Full Dataset).
-### Output Data: 
-SAM 3 predicted masks and JSON annotations saved in `./results/CROP_black/` (Demo) or `./data/annotations_head_region` (Full Dataset).
+* **Input**: `./results/SAM3_predicted/` (Demo) | `./data/SAM3_predicted/` (Full Dataset)
+* **Output**: `./results/annotations_head_region/` (Demo) | `./data/annotations_head_region/` (Full Dataset)
 
 ## 3. Manual Annotation of Chinese cabbage head region：
 Use [X-AnyLabeling](https://github.com/CVHub520/X-AnyLabeling) to manually annotate the precise boundaries of both the head region and the short stem for each cropped single-cabbage cross-section image. The generated `.json` files are used for subsequent phenotypic feature and color analysis.
@@ -46,7 +42,7 @@ Use [X-AnyLabeling](https://github.com/CVHub520/X-AnyLabeling) to manually annot
 * **Label Classes**: 
   * `Pan_center_contour_area` (Polygon annotation for the main leaf-head region)
   * `Short_stem` (Polygon annotation for the internal short stem)
-* **Input**: `./results/CROP_black/` (Demo) | `./data/annotations_head_region/` (Full Dataset)
+* **Input**: `./results/annotations_head_region/` (Demo) | `./data/annotations_head_region/` (Full Dataset)
 * **Output**: `./results/annotations_head_region/` (Demo) | `./data/annotations_head_region/` (Full Dataset)
 
 ## 4. Automated Yellow-Heart Region Extraction
@@ -56,13 +52,11 @@ Automated algorithm (`Yellow_heart_region_segmentation_json.py`) is used to extr
 python Yellow_heart_region_segmentation_json.py
 ```
 * **Input**: `./results/annotations_head_region` (Demo) | `./data/annotations_head_region/` (Full Dataset)
-* **Output**: `./results/annotations_head_region/` (Demo) | `./data/annotations_head_region/` (Full Dataset)
+* **Output**: `./results/Auto_segment_Yellow_heart/` (Demo) | `./data/Auto_segment_Yellow_heart/` (Full Dataset)
 
 ## 5. Chinese cabbage and yellow-heart region segmentation:
 Automated Segmentation of Head Region and Yellow-Heart Trait
 Figure: Demonstration of annotated head region masks and automated extraction of internal yellow-heart tissues.
-### Input Data: Raw images located in `./samples_images/` (Demo) or `./data/Raw_images/` (Full Dataset)).
-### Output Data: SAM 3 predicted masks and JSON annotations saved in `./results/SAM3_predicted/` (Demo) or `./data/SAM3_predicted/` (Full Dataset).
 
 <!-- 2. 下方 3 张动图：统一高度对齐排版 -->
 <table border="0">
@@ -86,9 +80,11 @@ Figure: Demonstration of annotated head region masks and automated extraction of
 ```bash
 python Yellow_color_features_extract.py
 ```
+* **Input**: `./results/annotations_head_region` (Demo) | `./data/annotations_head_region/` (Full Dataset)
+* **Output**: `./results/Auto_segment_Yellow_heart/` (Demo) | `./data/Auto_segment_Yellow_heart/` (Full Dataset)
 
 ## 7. Phenotypic Data Min-Max Normalization:
-`Min_Max.py` performs Min-Max normalization on the extracted raw phenotypic trait dataset to scale all feature values (e.g., area ratio and color parameters) into the range of $[0, 1]$, eliminating scale differences for downstream analysis.
+`Min_Max.py` performs Min-Max normalization on the extracted raw phenotypic trait dataset to scale all feature values (e.g., area ratio and color parameters) into the range of [0, 1], eliminating scale differences for downstream analysis.
 ```bash
 python Min_Max.py
 ```
