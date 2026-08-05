@@ -28,6 +28,15 @@ Utilizing SAM 3 with the text prompt "cabbage" to automatically perform high-thr
 pip install Crop.py
 ```
 
+## Manual Annotation of Chinese cabbage head region：
+Use [X-AnyLabeling](https://github.com/CVHub520/X-AnyLabeling) to manually annotate the precise boundaries of both the head region and the short stem for each cropped single-cabbage cross-section image. The generated `.json` files are used for subsequent phenotypic feature and color analysis.
+
+* **Tool**: X-AnyLabeling
+* **Label Classes**: 
+  * `Pan_center_contour_area` (Polygon annotation for the main leaf-head region)
+  * `Short_stem` (Polygon annotation for the internal short stem)
+* **Output**: Save `.json` files in the same directory as the cropped `.jpg` images.
+
 ## Chinese cabbage and yellow-heart region segmentation:
 Automated Segmentation of Head Region and Yellow-Heart Trait
 Figure: Demonstration of annotated head region masks and automated extraction of internal yellow-heart tissues.
