@@ -2,8 +2,8 @@ import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 
 # ==================== 配置 Excel 文件路径 ====================
-INPUT_EXCEL = r"H:\Cabbage_Heading_Segmentation_Dataset\Github\data\Auto_segment_Yellow_heart\True_Yellow_heart\roi_10_color_features_with_ratio.xlsx"   # 原始表格路径
-OUTPUT_EXCEL = r"H:\Cabbage_Heading_Segmentation_Dataset\Github\data\Auto_segment_Yellow_heart\True_Yellow_heart\normalized_data.xlsx"  # 归一化后另存为的新表格路径
+INPUT_EXCEL = r"./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/roi_10_color_features_with_ratio.xlsx"   # 原始表格路径
+OUTPUT_EXCEL = r"./samples_images/results/normalized_data_1319.xlsx"  # 归一化后另存为的新表格路径
 # ============================================================
 
 def normalize_color_features(input_path, output_path):
