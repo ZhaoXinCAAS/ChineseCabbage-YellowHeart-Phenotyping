@@ -6,9 +6,9 @@ from pathlib import Path
 
 # ===================== 配置项 / Path Configuration =====================
 # [默认路径] 指向 GitHub 仓库自带的 Mini 测试集 (可直接运行 Demo)
-INPUT_DIR = r"./samples_images" 
-OUTPUT_DIR = r"./samples_images/CROP_black/Annotate/Visualisation"
-JSON_OUTPUT_DIR = r"./samples_images/CROP_black/Annotate/json"
+INPUT_DIR = r"./samples_images/results/annotations_head_region" 
+OUTPUT_DIR = r"./samples_images/results/Auto_segment_Yellow_heart/"
+JSON_OUTPUT_DIR = r"./samples_images/results/Auto_segment_Yellow_heart/json"
 
 # -----------------------------------------------------------------------
 # [全量数据集运行指南 / Full Dataset Instructions]
