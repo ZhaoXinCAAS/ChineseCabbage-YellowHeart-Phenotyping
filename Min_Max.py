@@ -1,42 +1,41 @@
+import os
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 
-# ==================== Configuration Excel file path ====================
-INPUT_EXCEL = r"./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/roi_10_color_features_with_ratio.xlsx"   # Original table path
-OUTPUT_EXCEL = r"./samples_images/results/normalized_data_1319.xlsx"  # New table path saved as after normalization
-# ============================================================
+# Configuration
+# Default paths for Demo dataset
+INPUT_EXCEL = "./samples_images/results/roi_10_color_features_with_ratio.xlsx"
+OUTPUT_EXCEL = "./samples_images/results/normalized_data_1319.xlsx"
+
+# Full dataset paths (uncomment when running Figshare dataset)
+# INPUT_EXCEL = "./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/roi_10_color_features_with_ratio.xlsx"
+# OUTPUT_EXCEL = "./data/normalized_data_1319.xlsx"
 
 def normalize_color_features(input_path, output_path):
-    # 1. read raw Excel table
+    if not os.path.exists(input_path):
+        print(f"Error: Input file not found '{input_path}'")
+        return
+
     df = pd.read_excel(input_path)
-    
-    # 2. definition 10 color feature name
+
     color_features = [
         "R_mean", "G_mean", "B_mean", 
         "H_circular_mean_deg", "S_mean", "V_mean", 
         "L_mean", "a_mean", "b_mean", "ExR_mean"
     ]
-    
-    # Check if these columns exist in the table
+
     missing_cols = [col for col in color_features if col not in df.columns]
     if missing_cols:
-        print(f"❌ Error:The following columns are missing from the table,Please check whether the column name format is fully aligned: {missing_cols}")
+        print(f"Error: Missing specified columns: {missing_cols}")
         return
 
-    print("📊 Executing data Min-Max Normalized calculation [0, 1]...")
-
-    # 3. Yes 10 color features execute globally Min-Max normalization [0, 1]
     scaler = MinMaxScaler()
     df[color_features] = scaler.fit_transform(df[color_features])
 
-    # 4. Save the entire processed data to a new Excel(Export other columns completely intact)
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
     df.to_excel(output_path, index=False)
 
-    print("\n" + "="*50)
-    print(f"🎉 Normalization completed successfully!")
-    print(f" - number of features processed: {len(color_features)} color features(All features are scaled to [0, 1])")
-    print(f" - processed Excel Saved to: {output_path}")
-    print("="*50)
+    print(f"Min-Max normalization complete. Output saved to: {output_path}")
 
 if __name__ == "__main__":
     normalize_color_features(INPUT_EXCEL, OUTPUT_EXCEL)
