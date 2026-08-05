@@ -9,8 +9,10 @@ For automated batch segmentation across diverse crop images, users can leverage 
 3. Scope and Methodology Disclaimer: 
 This repository provides the fundamental experimental framework and implementation scripts—including yellow-heart region segmentation, multidimensional color trait extraction, Gaussian Mixture Model (GMM) grading, and broad-sense heritability calculation—designed to offer a methodological reference and workflow pipeline for researchers. Specific parameter configurations, extracted phenotypic features, and final grading thresholds should be carefully calibrated and validated according to the specific biological characteristics of the target crop under investigation.
 
+## Dataset & Project Structure
+To ensure complete reproducibility, the full high-throughput image dataset and raw analysis results used in this study are hosted on Figshare. A mini test dataset (./samples_images/) is provided directly within this repository for a quick demo.
 ## Requirements:
-
+### Full Dataset Access: [Download Full Dataset on Figshare](https://figshare.com/s/b0fd423cf7abd8d44f1b)
 Install dependencies using pip
 ```bash
 pip install -r requirements.txt
