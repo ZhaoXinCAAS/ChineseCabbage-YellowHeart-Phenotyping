@@ -21,7 +21,10 @@ pip install -r requirements.txt
 ```
 ## Batch Segmentation with SAM 3 (Text-prompt):
 Utilizing SAM 3 with the text prompt "cabbage" to automatically perform high-throughput extraction of leaf-heading region masks from cross-section images.
-
+### Input Data: 
+Raw images located in `./samples_images/` (Demo) or `./data/Raw_images/` (Full Dataset).
+### Output Data: 
+SAM 3 predicted masks and JSON annotations saved in `./results/SAM3_predicted/` (Demo) or `./data/SAM3_predicted/` (Full Dataset).
 <p align="center">
   <img width="85%" alt="Yeqiu_predict" src="https://github.com/user-attachments/assets/2f37b9a9-11a8-4734-aed9-fb5d39ef488f" />
 </p>
