@@ -22,6 +22,11 @@ Utilizing SAM 3 with the text prompt "cabbage" to automatically perform high-thr
   <img width="85%" alt="Yeqiu_predict" src="https://github.com/user-attachments/assets/2f37b9a9-11a8-4734-aed9-fb5d39ef488f" />
 </p>
 
+## Individual Chinese cabbage Head Cropping & Extraction
+Automated processing script to parse annotation coordinates from JSON files, crop individual heading cabbage cross-sections from raw field images, and output masked single-head images for downstream feature analysis.
+```bash
+pip install 
+```
 ## Chinese cabbage and yellow-heart region segmentation
 Automated Segmentation of Head Region and Yellow-Heart Trait
 Figure: Demonstration of annotated head region masks and automated extraction of internal yellow-heart tissues.
