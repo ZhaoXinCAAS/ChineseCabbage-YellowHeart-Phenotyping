@@ -24,7 +24,9 @@ Utilizing SAM 3 with the text prompt "cabbage" to automatically perform high-thr
 
 ## Individual Chinese cabbage Head Cropping & Extraction
 `Crop.py` is used to crop individual cabbage head ROIs from raw images based on JSON annotations.
-
+```bash
+pip install Crop.py
+```
 
 ## Chinese cabbage and yellow-heart region segmentation
 Automated Segmentation of Head Region and Yellow-Heart Trait
