@@ -11,7 +11,8 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # ===================== 全局参数配置 =====================
-DATA_FILE_PATH = r"#输入提取得到的表型参数#"
+DATA_FILE_PATH = r"./samples_images/results/CYS_1319.xlsx"
+OUTPUT_DIR = r"./samples_images/results/Plot"  # 统一输出文件夹路径
 
 # 自由模式：让数据自己说话，自动寻找最优聚类数
 FORCE_COMPONENTS = None  
@@ -34,6 +35,9 @@ def find_optimal_gmm_and_thresholds(file_path):
     if 'Yellow_score' not in df.columns:
         print("❌ 数据表中找不到 'Yellow_score' 列！")
         return
+
+    # 自动确保输出文件夹存在
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     df_clean = df.dropna(subset=['Yellow_score']).copy()
     df_clean['Yellow_score'] = df_clean['Yellow_score'].clip(lower=0)
@@ -91,7 +95,7 @@ def find_optimal_gmm_and_thresholds(file_path):
             intersection_x = (means[i] + means[i+1]) / 2.0
             
         thresholds.append(intersection_x)
-        print(f"   ➤ 数学阈值 T{i+1}: {intersection_x:.4f}")
+        print(f"    ➤ 数学阈值 T{i+1}: {intersection_x:.4f}")
 
     # ==========================================
     # 3. 导出新数据表
@@ -101,7 +105,8 @@ def find_optimal_gmm_and_thresholds(file_path):
     labels = range(1, best_k + 1)
     df_clean['Scientific_Grade'] = pd.cut(df_clean['Yellow_score'], bins=bins, labels=labels)
     
-    output_excel = file_path.replace('.xlsx', f'_GMM_Final_{best_k}Classes.xlsx')
+    excel_name = os.path.basename(file_path).replace('.xlsx', f'_GMM_Final_{best_k}Classes.xlsx')
+    output_excel = os.path.join(OUTPUT_DIR, excel_name)
     df_clean.to_excel(output_excel, index=False)
 
     # ==========================================
@@ -177,15 +182,17 @@ def find_optimal_gmm_and_thresholds(file_path):
     
     plt.tight_layout()
     
-    # 导出高精度矢量图
-    out_dir = os.path.dirname(file_path)
-    out_svg = os.path.join(out_dir, f'GMM_Final_Analysis.svg')
-    plt.savefig(out_svg, format='svg', bbox_inches='tight')
-    # 同时也导出一张高清 PNG 供快速浏览
-    plt.savefig(out_svg.replace('.svg', '.png'), format='png', dpi=600, bbox_inches='tight')
+    # 导出高精度矢量图与高清 PNG 至指定的 OUTPUT_DIR 目录
+    out_svg = os.path.join(OUTPUT_DIR, 'GMM_Final_Analysis.svg')
+    out_png = os.path.join(OUTPUT_DIR, 'GMM_Final_Analysis.png')
     
-    print(f"\n🎉 图表绘制完成！")
-    print(f"👉 矢量图已保存为: {os.path.basename(out_svg)}")
+    plt.savefig(out_svg, format='svg', bbox_inches='tight')
+    plt.savefig(out_png, format='png', dpi=600, bbox_inches='tight')
+    
+    print(f"\n🎉 处理与绘图完成！")
+    print(f"👉 标注 Excel 文件已保存至: {output_excel}")
+    print(f"👉 矢量图已保存至: {out_svg}")
+    print(f"👉 高清 PNG 已保存至: {out_png}")
 
 if __name__ == "__main__":
     find_optimal_gmm_and_thresholds(DATA_FILE_PATH)
