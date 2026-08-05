@@ -72,7 +72,6 @@ Figure: Demonstration of annotated head region masks and automated extraction of
     </td>
   </tr>
 </table>
-
 <hr style="height: 1px; border: none; background-color: #e1e4e8; margin: 20px 0;" />
 
 ## 6. Yellow-Heart Phenotypic Trait Extraction:
