@@ -8,6 +8,10 @@ Due to potential variations in image lighting and shooting environments, the thr
 For automated batch segmentation across diverse crop images, users can leverage the **Segment Anything Model 3 (SAM 3)** via [X-AnyLabeling](https://github.com/CVHub520/X-AnyLabeling). The pretrained **SAM 3 ViT-H** model supports text-prompted segmentation (e.g., inputting `"cabbage"`), allowing high-throughput mask generation. Pretrained ONNX checkpoints and model configurations can be obtained from the [X-AnyLabeling Model Zoo](https://github.com/CVHub520/X-AnyLabeling/blob/main/docs/en/model_zoo.md).
 3. Scope and Methodology Disclaimer: 
 This repository provides the fundamental experimental framework and implementation scripts—including yellow-heart region segmentation, multidimensional color trait extraction, Gaussian Mixture Model (GMM) grading, and broad-sense heritability calculation—designed to offer a methodological reference and workflow pipeline for researchers. Specific parameter configurations, extracted phenotypic features, and final grading thresholds should be carefully calibrated and validated according to the specific biological characteristics of the target crop under investigation.
+
+## Requirements
+
+Install dependencies using pip
 ## Batch Segmentation with SAM 3 (Text-prompt)
 Utilizing SAM 3 with the text prompt "cabbage" to automatically perform high-throughput extraction of leaf-heading region masks from cross-section images.
 
