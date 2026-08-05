@@ -19,7 +19,7 @@ Install dependencies using pip
 ```bash
 pip install -r requirements.txt
 ```
-## Batch Segmentation with SAM 3 (Text-prompt):
+## 1. Batch Segmentation with SAM 3 (Text-prompt):
 Utilizing SAM 3 with the text prompt "cabbage" to automatically perform high-throughput extraction of leaf-heading region masks from cross-section images.
 ### Input Data: 
 Raw images located in `./samples_images/` (Demo) or `./data/Raw_images/` (Full Dataset).
@@ -29,7 +29,7 @@ SAM 3 predicted masks and JSON annotations saved in `./results/SAM3_predicted/` 
   <img width="85%" alt="Yeqiu_predict" src="https://github.com/user-attachments/assets/2f37b9a9-11a8-4734-aed9-fb5d39ef488f" />
 </p>
 
-## Individual Chinese cabbage Head Cropping & Extraction:
+## 2. Individual Chinese cabbage Head Cropping & Extraction:
 `Crop.py` is used to crop individual cabbage head ROIs from raw images based on JSON annotations.
 ```bash
 python Crop.py
@@ -39,7 +39,7 @@ Raw images located in `./results/SAM3_predicted/` (Demo) or `./data/SAM3_predict
 ### Output Data: 
 SAM 3 predicted masks and JSON annotations saved in `./results/CROP_black/` (Demo) or `./data/annotations_head_region` (Full Dataset).
 
-## Manual Annotation of Chinese cabbage head region：
+## 3. Manual Annotation of Chinese cabbage head region：
 Use [X-AnyLabeling](https://github.com/CVHub520/X-AnyLabeling) to manually annotate the precise boundaries of both the head region and the short stem for each cropped single-cabbage cross-section image. The generated `.json` files are used for subsequent phenotypic feature and color analysis.
 
 * **Tool**: X-AnyLabeling
@@ -48,14 +48,14 @@ Use [X-AnyLabeling](https://github.com/CVHub520/X-AnyLabeling) to manually annot
   * `Short_stem` (Polygon annotation for the internal short stem)
 * **Output**: Save `.json` files in the same directory as the cropped `.jpg` images.
 
-## Automated Yellow-Heart Region Extraction
+## 4. Automated Yellow-Heart Region Extraction
 
 Automated algorithm (`Yellow_heart_region_segmentation_json.py`) is used to extract the internal yellow-heart tissue within the annotated leaf-heading region (`Pan_center_contour_area`), excluding the short stem area.
 ```bash
 python Yellow_heart_region_segmentation_json.py
 ```
 
-## Chinese cabbage and yellow-heart region segmentation:
+## 5. Chinese cabbage and yellow-heart region segmentation:
 Automated Segmentation of Head Region and Yellow-Heart Trait
 Figure: Demonstration of annotated head region masks and automated extraction of internal yellow-heart tissues.
 ### Input Data: Raw images located in `./samples_images/` (Demo) or `./data/Raw_images/` (Full Dataset)).
@@ -78,31 +78,31 @@ Figure: Demonstration of annotated head region masks and automated extraction of
 
 <hr style="height: 1px; border: none; background-color: #e1e4e8; margin: 20px 0;" />
 
-## Yellow-Heart Phenotypic Trait Extraction:
+## 6. Yellow-Heart Phenotypic Trait Extraction:
 `Yellow_color_features_extract.py` is used to automatically extract quantitative phenotypic traits (yellow-heart area ratio and 10 color space features) from segmented Chinese cabbage head regions.
 ```bash
 python Yellow_color_features_extract.py
 ```
 
-## Phenotypic Data Min-Max Normalization:
+## 7. Phenotypic Data Min-Max Normalization:
 `Min_Max.py` performs Min-Max normalization on the extracted raw phenotypic trait dataset to scale all feature values (e.g., area ratio and color parameters) into the range of $[0, 1]$, eliminating scale differences for downstream analysis.
 ```bash
 python Min_Max.py
 ```
 
-## Fisher Discriminant Score Calculation:
+## 8. Fisher Discriminant Score Calculation:
 `Fisher_scores.py` computes the Fisher discriminant score for each extracted phenotypic feature, evaluating its power to differentiate between distinct yellow-heart phenotype categories.
 ```bash
 python Fisher_scores.py
 ```
 
-## GMM-Based Color Trait Modeling and Distribution Visualization:
+## 9. GMM-Based Color Trait Modeling and Distribution Visualization:
 `GMM_CYS.py` applies Gaussian Mixture Models (GMM) to model the CYS color distribution within heading Chinese cabbage yellow-heart regions and generates corresponding probability density distribution plots.
 ```bash
 python GMM_CYS.py
 ```
 
-## Broad-Sense Heritability Calculation:
+## 10. Broad-Sense Heritability Calculation:
 ```bash
 python H2.py
 ```
