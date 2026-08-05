@@ -25,7 +25,7 @@ Utilizing SAM 3 with the text prompt "cabbage" to automatically perform high-thr
 ## Individual Chinese cabbage Head Cropping & Extraction:
 `Crop.py` is used to crop individual cabbage head ROIs from raw images based on JSON annotations.
 ```bash
-pip Crop.py
+python Crop.py
 ```
 
 ## Manual Annotation of Chinese cabbage head region：
@@ -41,7 +41,7 @@ Use [X-AnyLabeling](https://github.com/CVHub520/X-AnyLabeling) to manually annot
 
 Automated algorithm (`Yellow_heart_region_segmentation_json.py`) is used to extract the internal yellow-heart tissue within the annotated leaf-heading region (`Pan_center_contour_area`), excluding the short stem area.
 ```bash
-pip Yellow_heart_region_segmentation_json.py
+python Yellow_heart_region_segmentation_json.py
 ```
 
 ## Chinese cabbage and yellow-heart region segmentation:
