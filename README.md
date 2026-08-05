@@ -88,7 +88,7 @@ python Yellow_color_features_extract.py
 ```bash
 python Min_Max.py
 ```
-* **Input**: `./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/roi_10_color_features_with_ratio.xlsx"` (Full Dataset)
+* **Input**: `./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/roi_10_color_features_with_ratio.xlsx` (Full Dataset)
 * **Output**: `./samples_images/results/normalized_data_1319.xlsx` (Demo)
 
 ## 8. Fisher Discriminant Score Calculation:
@@ -97,7 +97,7 @@ python Min_Max.py
 python Fisher_scores.py
 ```
 
-* **Input**: `./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/roi_10_color_features_with_ratio.xlsx"` (Full Dataset) and './data/Fisher_score_data'
+* **Input**: `./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/roi_10_color_features_with_ratio.xlsx"` (Full Dataset) and './data/Fisher_score_data/'
 * **Output**: `./samples_images/results/fisher_weights_418.xlsx` (Demo)
 
 ## 9. GMM-Based Color Trait Modeling and Distribution Visualization:
@@ -107,7 +107,7 @@ python GMM_CYS.py
 ```
 
 * **Input**: `./samples_images/results/CYS_1319.xlsx'
-* **Output**: `./samples_images/results/Plot` (Demo)
+* **Output**: `./samples_images/results/Plot/` (Demo)
 
 ## 10. Broad-Sense Heritability Calculation:
 ```bash
@@ -115,4 +115,4 @@ python H2.py
 ```
 
 * **Input**: `./samples_images/results/CYS_1319.xlsx'
-* **Output**: `./samples_images/results/Plot` (Demo)
+* **Output**: `./samples_images/results/Plot/` (Demo)
