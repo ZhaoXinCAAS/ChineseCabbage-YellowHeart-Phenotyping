@@ -11,8 +11,10 @@ This repository provides the fundamental experimental framework and implementati
 
 ## Dataset & Project Structure
 To ensure complete reproducibility, the full high-throughput image dataset and raw analysis results used in this study are hosted on Figshare. A mini test dataset (./samples_images/) is provided directly within this repository for a quick demo.
-## Requirements:
+
 ### Full Dataset Access: [Download Full Dataset on Figshare](https://figshare.com/s/b0fd423cf7abd8d44f1b)
+
+## Requirements:
 Install dependencies using pip
 ```bash
 pip install -r requirements.txt
