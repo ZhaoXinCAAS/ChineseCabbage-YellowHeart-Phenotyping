@@ -34,6 +34,10 @@ SAM 3 predicted masks and JSON annotations saved in `./results/SAM3_predicted/` 
 ```bash
 python Crop.py
 ```
+### Input Data: 
+Raw images located in `./results/SAM3_predicted/` (Demo) or `./data/SAM3_predicted/` (Full Dataset).
+### Output Data: 
+SAM 3 predicted masks and JSON annotations saved in `./results/CROP_black/` (Demo) or `./data/annotations_head_region` (Full Dataset).
 
 ## Manual Annotation of Chinese cabbage head region：
 Use [X-AnyLabeling](https://github.com/CVHub520/X-AnyLabeling) to manually annotate the precise boundaries of both the head region and the short stem for each cropped single-cabbage cross-section image. The generated `.json` files are used for subsequent phenotypic feature and color analysis.
