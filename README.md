@@ -12,6 +12,9 @@ This repository provides the fundamental experimental framework and implementati
 ## Requirements
 
 Install dependencies using pip
+```bash
+pip install -r requirements.txt
+```
 ## Batch Segmentation with SAM 3 (Text-prompt)
 Utilizing SAM 3 with the text prompt "cabbage" to automatically perform high-throughput extraction of leaf-heading region masks from cross-section images.
 
