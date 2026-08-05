@@ -82,3 +82,14 @@ python Min_Max.py
 ```bash
 python Fisher_scores.py
 ```
+
+## GMM-Based Color Trait Modeling and Distribution Visualization:
+`GMM_CYS.py` applies Gaussian Mixture Models (GMM) to model the CYS color distribution within heading Chinese cabbage yellow-heart regions and generates corresponding probability density distribution plots.
+```bash
+python GMM_CYS.py
+```
+
+## Broad-Sense Heritability Calculation:
+```bash
+python H2.py
+```
