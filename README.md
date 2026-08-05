@@ -23,8 +23,7 @@ Utilizing SAM 3 with the text prompt "cabbage" to automatically perform high-thr
 </p>
 
 ## Individual Chinese cabbage Head Cropping & Extraction
-Automated processing script to parse annotation coordinates from JSON files, crop individual heading cabbage cross-sections from raw field images, and output masked single-head images for downstream feature analysis.
-```bash
+`Crop.py` is used to crop individual cabbage head ROIs from raw images based on JSON annotations.
 pip install 
 ```
 ## Chinese cabbage and yellow-heart region segmentation
