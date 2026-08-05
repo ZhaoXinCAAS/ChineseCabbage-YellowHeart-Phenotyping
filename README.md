@@ -65,3 +65,8 @@ Figure: Demonstration of annotated head region masks and automated extraction of
 
 <hr style="height: 1px; border: none; background-color: #e1e4e8; margin: 20px 0;" />
 
+## Yellow-Heart Phenotypic Trait Extraction:
+`Yellow_color_features_extract.py` is used to automatically extract quantitative phenotypic traits (yellow-heart area ratio and 10 color space features) from segmented cabbage head regions.
+```bash
+python Yellow_color_features_extract.py
+```
