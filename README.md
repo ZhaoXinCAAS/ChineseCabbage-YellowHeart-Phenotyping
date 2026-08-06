@@ -150,7 +150,7 @@ python scripts/Min_Max.py
 python scripts/Fisher_scores.py
 ```
 
-* **Input**: `./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/roi_10_color_features_with_ratio.xlsx` (Full Dataset) and `./data/Fisher_score_data/`
+* **Input**: `./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/roi_10_color_features_with_ratio.xlsx` (Full Dataset) and `./data/Fisher_score_data/` (Full Dataset)
 * **Output**: `./samples_images/results/fisher_weights_418.xlsx` (Demo)
 
 > **Data Structure Description**: Contains Fisher scores, response directions, and calculated composite weights (CYS weights) for 10 multi-color-space features (`fisher_weights_418.xlsx`):
@@ -168,8 +168,7 @@ python scripts/Fisher_scores.py
 python scripts/GMM_CYS.py
 ```
 
-* **Input**: `./full_dataset_tables/CYS_1319.xlsx`
-
+* **Input**: `./full_dataset_tables/CYS_1319.xlsx` (Demo)
 * **Output**: `./full_dataset_tables/Plot/` (Demo)
 
 > **Data Structure Description**: Contains extracted area ratios, normalized core color features, re-scaled Fisher weights, calculated CYS scores, and GMM-derived scientific grades (`CYS_1319_CYS_GMM_5Classes.xlsx`):
@@ -193,5 +192,5 @@ H2.py estimates broad-sense heritability (H²) for phenotypic traits using Linea
 python scripts/H2.py
 ```
 
-* **Input**: `./full_dataset_tables/CYS_1319.xlsx`
+* **Input**: `./full_dataset_tables/CYS_1319.xlsx` (Demo)
 * **Output**: `./full_dataset_tables/Plot/` (Demo)
