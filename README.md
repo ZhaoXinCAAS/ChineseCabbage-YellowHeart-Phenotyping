@@ -171,7 +171,7 @@ python scripts/GMM_CYS.py
 > | `1-B` | Inverted value of normalized $B$ component ($1 - B_{mean}$) representing yellow intensity |
 > | `ExR_weight`, `S_weight`, `b_weight`, `B_weight` | Re-normalized Fisher weights ($w_i > 0, \sum w_i = 1$) for the 4 core color features |
 > | `Yellow_score` | Weighted composite score calculated solely from the 4 core color features |
-> | `CYS` | Comprehensive Yellow Score (CYS = Yellow Ratio * Yellow score |
+> | `CYS` | Comprehensive Yellow Score (CYS = Yellow Ratio * Yellow score) |
 > | `QR` | Accession / Genotype identifier for GWAS and heritability analysis |
 
 ## 11. Broad-Sense Heritability Calculation:
