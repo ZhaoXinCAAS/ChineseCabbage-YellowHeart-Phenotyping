@@ -162,18 +162,6 @@ python scripts/GMM_CYS.py
 * **Input**: `./full_dataset_tables/CYS_1319.xlsx`
 
 > **Data Structure Description**: Contains extracted area ratios, normalized core color features, re-scaled Fisher weights, and calculated phenotypic scores (`CYS_1319.xlsx`):
->
-> | Column Header | Description |
-> |---|---|
-> | `filename` | Image filename of the cropped single cabbage head |
-> | `Yellow_Ratio` | Area ratio of segmented yellow-heart region to total head area |
-> | `S_mean`, `b_mean`, `ExR_mean` | Min-Max normalized values for core positive color features ($S$, $b^*$, $ExR$) |
-> | `B_mean` | Min-Max normalized value for the raw $B$ component |
-> | `1-B` | Inverted value of normalized $B$ component ($1 - B_{mean}$) representing yellow intensity |
-> | `ExR_weight`, `S_weight`, `b_weight`, `B_weight` | Re-normalized Fisher weights ($w_i > 0, \sum w_i = 1$) for the 4 core color features |
-> | `Yellow_score` | Weighted composite score calculated solely from the 4 core color features |
-> | `CYS` | Comprehensive Yellow Score (CYS = Yellow Ratio * Yellow score) |
-> | `QR` | Accession / Genotype identifier for GWAS and heritability analysis |
 
 * **Output**: `./full_dataset_tables/Plot/` (Demo)
 
