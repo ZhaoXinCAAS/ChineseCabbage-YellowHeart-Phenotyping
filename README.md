@@ -181,7 +181,7 @@ python scripts/GMM_CYS.py
 > | `Scientific_Grade` | Phenotypic classification grade (1 to 5) automatically assigned based on GMM thresholds (T1 -T4) |
 ## 11. Broad-Sense Heritability Calculation:
 H2.py estimates broad-sense heritability (H²) for phenotypic traits using Linear Mixed-Effects Models (LMM) with REML estimation.
-python scripts/H2.py
+
 ```bash
 python scripts/H2.py
 ```
