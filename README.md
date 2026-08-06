@@ -159,8 +159,8 @@ python scripts/Fisher_scores.py
 python scripts/GMM_CYS.py
 ```
 
-* **Input**: `./samples_images/results/CYS_1319.xlsx`
-* **Output**: `./samples_images/results/Plot/` (Demo)
+* **Input**: `./full_dataset_tables/CYS_1319.xlsx`
+* **Output**: `./full_dataset_tables/Plot/` (Demo)
 > **Data Structure Description**: Contains extracted area ratios, normalized core color features, re-scaled Fisher weights, and calculated phenotypic scores (`CYS_1319.xlsx`):
 >
 > | Column Header | Description |
@@ -176,9 +176,11 @@ python scripts/GMM_CYS.py
 > | `QR` | Accession / Genotype identifier for GWAS and heritability analysis |
 
 ## 11. Broad-Sense Heritability Calculation:
+H2.py estimates broad-sense heritability (H²) for phenotypic traits using Linear Mixed-Effects Models (LMM) with REML estimation.
+python scripts/H2.py
 ```bash
 python scripts/H2.py
 ```
 
-* **Input**: `./samples_images/results/CYS_1319.xlsx`
-* **Output**: `./samples_images/results/Plot/` (Demo)
+* **Input**: `./full_dataset_tables/CYS_1319.xlsx`
+* **Output**: `./full_dataset_tables/Plot/` (Demo)
