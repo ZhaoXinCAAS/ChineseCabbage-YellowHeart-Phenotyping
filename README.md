@@ -15,7 +15,7 @@ To ensure complete reproducibility, the full high-throughput image dataset, segm
 
 * **Full Dataset Access (Figshare)**: 
   * `data.zip` (~17.45 GB): Raw images, SAM3 predictions, and polygon annotation JSONs.
-  * `phenotype_grading_results.zip`: Complete visualization images and classification results for 5-grade yellow-heart phenotyping.
+  * `phenotype_grading_results.zip` (~254.79 MB): Complete visualization images and classification results for 5-grade yellow-heart phenotyping.
 * **DOI**: `10.6084/m9.figshare.33154715`
 
 Download the ZIP file from Figshare: 
