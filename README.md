@@ -24,7 +24,7 @@ pip install -r requirements.txt
 ## 1. Downloading the Datasets
 The full-scale dataset is deposited on Figshare 
 
-Please download the `data.zip` file (≈17.53 GB) and extract its contents into a folder named `data/` at the root directory of this repository.
+Please download the `data.zip` file (≈17.45 GB) and extract its contents into a folder named `data/` at the root directory of this repository.
 
 ### Expected folder structure after extraction:
 
