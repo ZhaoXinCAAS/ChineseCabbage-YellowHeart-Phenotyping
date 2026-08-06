@@ -3,16 +3,9 @@ import pandas as pd
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 
-# Configuration
-# Default paths for Demo dataset
-ROI_FEATURES_FILE = "./samples_images/results/roi_10_color_features_with_ratio.xlsx"
-LABELED_ROOT = "./samples_images/Fisher_score_data/"
-OUTPUT_METRICS_EXCEL = "./samples_images/results/fisher_weights_418.xlsx"
-
-# Full dataset paths (uncomment when running Figshare dataset)
-# ROI_FEATURES_FILE = "./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/roi_10_color_features_with_ratio.xlsx"
-# LABELED_ROOT = "./data/Fisher_score_data/"
-# OUTPUT_METRICS_EXCEL = "./data/fisher_weights_418.xlsx"
+ROI_FEATURES_FILE = "./full_dataset_tables/roi_10_color_features_with_ratio.xlsx"
+LABELED_ROOT = "./data/Fisher_score_data/"
+OUTPUT_METRICS_EXCEL = "./full_dataset_tables/fisher_weights_418.xlsx"
 
 FEATURES = [
     "H_circular_mean_deg", "S_mean", "V_mean", "L_mean", 

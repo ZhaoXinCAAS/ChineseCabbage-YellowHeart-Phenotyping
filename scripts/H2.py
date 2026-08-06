@@ -10,20 +10,16 @@ warnings.filterwarnings('ignore')
 
 # Configuration
 # Default paths for Demo dataset
-DATA_FILE_PATH = "./samples_images/results/CYS_1319.xlsx"
-OUTPUT_DIR = "./samples_images/results/Plot/"
-
-# Full dataset paths (uncomment when running Figshare dataset)
-# DATA_FILE_PATH = "./data/CYS_1319.xlsx"
-# OUTPUT_DIR = "./data/Plot/"
+DATA_FILE_PATH = "./full_dataset_tables/CYS_1319.xlsx"
+OUTPUT_DIR = "./full_dataset_tables/Plot/"
 
 GENOTYPE_COL = 'QR'
 
 TRAITS_MAP = {
-    'S_mean': r'$\mathrm{S}$',
-    'b_mean': r'$\mathrm{b^*}$',
-    'ExR_mean': r'$\mathrm{ExR}$',
-    'B_mean': r'$\mathrm{B}$',
+    'S_mean': r'S',
+    'b_mean': r'b*',
+    'ExR_mean': r'ExR',
+    'B_mean': r'B',
     'Yellow_Ratio': 'Yellow Ratio',
     'Yellow_score': 'Yellow Score',
     'CYS': 'CYS'
@@ -118,8 +114,8 @@ def plot_sci_heritability_bar(h2_results, output_dir):
     plt.tight_layout()
 
     os.makedirs(output_dir, exist_ok=True)
-    svg_path = os.path.join(output_dir, "Figure_S1_Broad_Sense_Heritability_LMM.svg")
-    png_path = os.path.join(output_dir, "Figure_S1_Broad_Sense_Heritability_LMM.png")
+    svg_path = os.path.join(output_dir, "CYS_Broad_Sense_Heritability_LMM.svg")
+    png_path = os.path.join(output_dir, "CYS_Broad_Sense_Heritability_LMM.png")
 
     plt.savefig(svg_path, format='svg', bbox_inches='tight')
     plt.savefig(png_path, format='png', dpi=600, bbox_inches='tight')

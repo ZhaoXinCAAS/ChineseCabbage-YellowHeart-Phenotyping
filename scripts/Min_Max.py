@@ -4,12 +4,8 @@ from sklearn.preprocessing import MinMaxScaler
 
 # Configuration
 # Default paths for Demo dataset
-INPUT_EXCEL = "./samples_images/results/roi_10_color_features_with_ratio.xlsx"
-OUTPUT_EXCEL = "./samples_images/results/normalized_data_1319.xlsx"
-
-# Full dataset paths (uncomment when running Figshare dataset)
-# INPUT_EXCEL = "./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/roi_10_color_features_with_ratio.xlsx"
-# OUTPUT_EXCEL = "./data/normalized_data_1319.xlsx"
+INPUT_EXCEL = "./full_dataset_tables/roi_10_color_features_with_ratio.xlsx"
+OUTPUT_EXCEL = "./full_dataset_tables/normalized_data_1319.xlsx"
 
 def normalize_color_features(input_path, output_path):
     if not os.path.exists(input_path):
