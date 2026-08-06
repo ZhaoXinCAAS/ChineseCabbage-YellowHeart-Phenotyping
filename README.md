@@ -53,7 +53,7 @@ ChineseCabbage-YellowHeart-Phenotyping/
 │   │   ├── Light_yellow/               # Cross-section images with light yellow-heart intensity
 │   │   └── yellow/                     # Cross-section images with moderate yellow-heart intensity
 │   └── SAM3_onnx/                      # SAM 3 ONNX weights and X-AnyLabeling annotation tools
-│   phenotype_grading_results/     # Extracted from phenotype_grading_results.zip
+├── phenotype_grading_results/     # Extracted from phenotype_grading_results.zip
 │       ├── Grade_1/                    # Visualized cross-section masks for Grade 1
 │       ├── Grade_2/                    # Visualized cross-section masks for Grade 2
 │       ├── Grade_3/                    # Visualized cross-section masks for Grade 3
