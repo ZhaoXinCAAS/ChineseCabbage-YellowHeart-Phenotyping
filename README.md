@@ -32,7 +32,7 @@ ChineseCabbage-YellowHeart-Phenotyping/
 ├── data/
 │   ├── Raw_images/                     # Original unprocessed RGB cross-section images
 │   ├── SAM3_predicted/                 # Initial binary mask predictions from SAM 3 inference
-│   ├── Annotations_head_region/        # Manually curated polygon annotations (JSON format)
+│   ├── Annotations_head_Region/        # Manually curated polygon annotations (JSON format)
 │   ├── Auto_segment_Yellow_heart/      # Automated yellow-heart segmentation evaluation dataset
 │   │   ├── False_Yellow_heart/         # Incorrectly segmented cases
 │   │   │   ├── Head_region_label/      # Cropped single-head images with manually annotated head polygon JSON files("Pan_center_contour_area")
