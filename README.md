@@ -143,6 +143,15 @@ python scripts/Fisher_scores.py
 * **Input**: `./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/roi_10_color_features_with_ratio.xlsx` (Full Dataset) and `./data/Fisher_score_data/`
 * **Output**: `./samples_images/results/fisher_weights_418.xlsx` (Demo)
 
+> **Data Structure Description**: Contains Fisher scores, response directions, and calculated composite weights (CYS weights) for 10 multi-color-space features (`fisher_weights_418.xlsx`):
+>
+> | Column Header | Description |
+> |---|---|
+> | `Feature_Name` | Name of the multi-color-space feature extracted from heading Chinese cabbage heads |
+> | `Fisher_Score` | Feature discriminative score calculated using Fisher's linear discriminant ratio |
+> | `Response_Direction` | Correlation sign with yellow-heart intensity (`Positive (+)` for positive contribution, `Negative (-)` for negative contribution) |
+> | `Final_Weight` | Normalized directional weight used to compute the Comprehensive Yellow Score (CYS) |
+
 ## 10. GMM-Based Color Trait Modeling and Distribution Visualization:
 `GMM_CYS.py` applies Gaussian Mixture Models (GMM) to model the CYS color distribution within heading Chinese cabbage yellow-heart regions and generates corresponding probability density distribution plots.
 ```bash
@@ -151,6 +160,19 @@ python scripts/GMM_CYS.py
 
 * **Input**: `./samples_images/results/CYS_1319.xlsx`
 * **Output**: `./samples_images/results/Plot/` (Demo)
+> **Data Structure Description**: Contains extracted area ratios, normalized core color features, re-scaled Fisher weights, and calculated phenotypic scores (`CYS_1319.xlsx`):
+>
+> | Column Header | Description |
+> |---|---|
+> | `filename` | Image filename of the cropped single cabbage head |
+> | `Yellow_Ratio` | Area ratio of segmented yellow-heart region to total head area |
+> | `S_mean`, `b_mean`, `ExR_mean` | Min-Max normalized values for core positive color features ($S$, $b^*$, $ExR$) |
+> | `B_mean` | Min-Max normalized value for the raw $B$ component |
+> | `1-B` | Inverted value of normalized $B$ component ($1 - B_{mean}$) representing yellow intensity |
+> | `ExR_weight`, `S_weight`, `b_weight`, `B_weight` | Re-normalized Fisher weights ($w_i > 0, \sum w_i = 1$) for the 4 core color features |
+> | `Yellow_score` | Weighted composite score calculated solely from the 4 core color features |
+> | `CYS` | Comprehensive Yellow Score (CYS = Yellow Ratio * Yellow score |
+> | `QR` | Accession / Genotype identifier for GWAS and heritability analysis |
 
 ## 11. Broad-Sense Heritability Calculation:
 ```bash
