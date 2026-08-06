@@ -6,14 +6,8 @@ import cv2
 import numpy as np
 import pandas as pd
 
-# Configuration
-# Default paths for Demo dataset
-INPUT_FOLDER = "./samples_images/results/Auto_segment_Yellow_heart/json/"
-OUTPUT_XLSX = "./samples_images/results/roi_10_color_features_with_ratio.xlsx"
-
-# Full dataset paths (uncomment when running Figshare dataset)
-# INPUT_FOLDER = "./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/"
-# OUTPUT_XLSX = "./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/roi_10_color_features_with_ratio.xlsx"
+INPUT_FOLDER = "./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/"
+OUTPUT_XLSX = "./full_dataset_tables/roi_10_color_features_with_ratio.xlsx"
 
 VALID_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"}
 LABEL_YELLOW = "Yellow_area"

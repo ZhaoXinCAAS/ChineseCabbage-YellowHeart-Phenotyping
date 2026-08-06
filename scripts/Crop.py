@@ -12,7 +12,7 @@ output_root_dir = "./samples_images/results/annotations_head_region"
 # Full dataset paths (uncomment when running Figshare dataset)
 # json_folder_path = "./data/SAM3_predicted"
 # image_folder_path = "./data/SAM3_predicted"
-# output_root_dir = "./data/CROP_black"
+# output_root_dir = "./data/Annotations_head_region"
 
 os.makedirs(output_root_dir, exist_ok=True)
 

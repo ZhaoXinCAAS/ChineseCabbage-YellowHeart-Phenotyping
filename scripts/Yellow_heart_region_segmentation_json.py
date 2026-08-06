@@ -7,7 +7,7 @@ from pathlib import Path
 # Configuration
 # Default paths for Demo dataset
 INPUT_DIR = "./samples_images/results/annotations_head_region" 
-OUTPUT_DIR = "./samples_images/results/Auto_segment_Yellow_heart/"
+OUTPUT_DIR = "./samples_images/results/Auto_segment_Yellow_heart/Visualization"
 JSON_OUTPUT_DIR = "./samples_images/results/Auto_segment_Yellow_heart/json"
 
 # Full dataset paths (uncomment when running Figshare dataset)
