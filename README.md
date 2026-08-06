@@ -10,7 +10,6 @@ For automated batch segmentation across diverse crop images, users can leverage 
 This repository provides the fundamental experimental framework and implementation scripts—including yellow-heart region segmentation, multidimensional color trait extraction, Gaussian Mixture Model (GMM) grading, and broad-sense heritability calculation—designed to offer a methodological reference and workflow pipeline for researchers. Specific parameter configurations, extracted phenotypic features, and final grading thresholds should be carefully calibrated and validated according to the specific biological characteristics of the target crop under investigation.
 
 ## Dataset & Project Structure
-## Dataset & Project Structure
 To ensure complete reproducibility, the full high-throughput image dataset, segmentation masks, and phenotype grading visualization results are archived on **Figshare**. A lightweight test dataset (`./samples_images/`) is provided directly within this repository for a quick demo run.
 
 * **Full Dataset Access (Figshare)**: 
@@ -54,6 +53,12 @@ ChineseCabbage-YellowHeart-Phenotyping/
 │   │   ├── Light_yellow/               # Cross-section images with light yellow-heart intensity
 │   │   └── yellow/                     # Cross-section images with moderate yellow-heart intensity
 │   └── SAM3_onnx/                      # SAM 3 ONNX weights and X-AnyLabeling annotation tools
+│   phenotype_grading_results/     # Extracted from phenotype_grading_results.zip
+│       ├── Grade_1/                    # Visualized cross-section masks for Grade 1
+│       ├── Grade_2/                    # Visualized cross-section masks for Grade 2
+│       ├── Grade_3/                    # Visualized cross-section masks for Grade 3
+│       ├── Grade_4/                    # Visualized cross-section masks for Grade 4
+│       └── Grade_5/                    # Visualized cross-section masks for Grade 5
 ```
 
 ## 2. Batch Segmentation with SAM 3 (Text-prompt):
