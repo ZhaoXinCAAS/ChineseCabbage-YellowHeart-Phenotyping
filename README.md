@@ -161,8 +161,6 @@ python scripts/GMM_CYS.py
 
 * **Input**: `./full_dataset_tables/CYS_1319.xlsx`
 
-> **Data Structure Description**: Contains extracted area ratios, normalized core color features, re-scaled Fisher weights, and calculated phenotypic scores (`CYS_1319.xlsx`):
-
 * **Output**: `./full_dataset_tables/Plot/` (Demo)
 
 > **Data Structure Description**: Contains extracted area ratios, normalized core color features, re-scaled Fisher weights, calculated CYS scores, and GMM-derived scientific grades (`CYS_1319_CYS_GMM_5Classes.xlsx`):
