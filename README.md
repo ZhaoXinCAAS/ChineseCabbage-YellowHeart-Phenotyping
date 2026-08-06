@@ -19,6 +19,36 @@ Install dependencies using pip
 ```bash
 pip install -r requirements.txt
 ```
+
+## 1. Downloading the Datasets
+The full-scale dataset is deposited on Figshare ([https://doi.org/10.6084/m9.figshare.33154715](https://doi.org/10.6084/m9.figshare.33154715)). 
+
+Please download the `data.zip` file (≈17.53 GB) and extract its contents into a folder named `data/` at the root directory of this repository.
+
+### Expected folder structure after extraction:
+
+```text
+ChineseCabbage-YellowHeart-Phenotyping/
+├── data/
+│   ├── Raw_images/                     # Original unprocessed RGB cross-section images
+│   ├── SAM3_predicted/                 # Initial binary mask predictions from SAM 3 inference
+│   ├── Annotations_head_region/        # Manually curated polygon annotations (JSON format)
+│   ├── Auto_segment_Yellow_heart/      # Automated yellow-heart segmentation evaluation dataset
+│   │   ├── False_Yellow_heart/         # Incorrectly segmented cases
+│   │   │   ├── Head_region_label/      # Cropped single-head images with manually annotated head polygon JSON files("Pan_center_contour_area")
+│   │   │   ├── Visualization/          # Overlay visualizations of segmented yellow-heart regions
+│   │   │   └── json/                   # Exported polygon mask annotations in JSON format
+│   │   └── True_Yellow_heart/          # Correctly segmented cases
+│   │       ├── Head_region_label/      # Cropped single-head images with manually annotated head polygon JSON files("Pan_center_contour_area")
+│   │       ├── Visualization/          # Overlay visualizations of segmented yellow-heart regions
+│   │       └── json/                   # Exported polygon mask annotations in JSON format
+│   ├── Fisher_score_data/              # Categorized datasets for Fisher score evaluation based on yellow-heart intensity
+│   │   ├── Deep_yellow/                # Cross-section images with deep yellow-heart intensity
+│   │   ├── Light_yellow/               # Cross-section images with light yellow-heart intensity
+│   │   └── yellow/                     # Cross-section images with moderate yellow-heart intensity
+│   └── SAM3_onnx/                      # SAM 3 ONNX weights and X-AnyLabeling annotation tools
+```
+
 ## 1. Batch Segmentation with SAM 3 (Text-prompt):
 Utilizing SAM 3 with the text prompt "cabbage" to automatically perform high-throughput extraction of leaf-heading region masks from cross-section images.
 * **Tools & Models**: The pre-trained ONNX model files and X-AnyLabeling executable software are provided in `./data/SAM3_onnx/`.
