@@ -120,8 +120,8 @@ Figure: Demonstration of annotated head region masks and automated extraction of
 ```bash
 python scripts/Yellow_color_features_extract.py
 ```
-* **Input**: `./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/` (Full Dataset)
-* **Output**: `./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/roi_10_color_features_with_ratio.xlsx` (Full Dataset)
+* **Input**: './data/Auto_segment_Yellow_heart/True_Yellow_heart/json/' (Full Dataset)
+* **Output**: './data/Auto_segment_Yellow_heart/True_Yellow_heart/json/roi_10_color_features_with_ratio.xlsx' (Full Dataset)
 > **Data Structure Description**: Contains extracted area ratios and 10 multi-color-space feature values calculated for individual cabbage heads:
   >
   > | Column Header | Description |
@@ -141,8 +141,8 @@ python scripts/Yellow_color_features_extract.py
 ```bash
 python scripts/Min_Max.py
 ```
-* **Input**: `./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/roi_10_color_features_with_ratio.xlsx` (Full Dataset)
-* **Output**: `./samples_images/results/normalized_data_1319.xlsx` (Demo)
+* **Input**: './data/Auto_segment_Yellow_heart/True_Yellow_heart/json/roi_10_color_features_with_ratio.xlsx' (Full Dataset)
+* **Output**: './samples_images/results/normalized_data_1319.xlsx' (Demo)
 
 ## 10. Fisher Discriminant Score Calculation:
 `Fisher_scores.py` computes the Fisher discriminant score for each extracted phenotypic feature, evaluating its power to differentiate between distinct yellow-heart phenotype categories.
@@ -150,8 +150,8 @@ python scripts/Min_Max.py
 python scripts/Fisher_scores.py
 ```
 
-* **Input**: `./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/roi_10_color_features_with_ratio.xlsx` (Full Dataset) and `./data/Fisher_score_data/` (Full Dataset)
-* **Output**: `./samples_images/results/fisher_weights_418.xlsx` (Demo)
+* **Input**: './data/Auto_segment_Yellow_heart/True_Yellow_heart/json/roi_10_color_features_with_ratio.xlsx' (Full Dataset) and './data/Fisher_score_data/' (Full Dataset)
+* **Output**: './samples_images/results/fisher_weights_418.xlsx' (Demo)
 
 > **Data Structure Description**: Contains Fisher scores, response directions, and calculated composite weights (CYS weights) for 10 multi-color-space features (`fisher_weights_418.xlsx`):
 >
@@ -168,8 +168,8 @@ python scripts/Fisher_scores.py
 python scripts/GMM_CYS.py
 ```
 
-* **Input**: `./full_dataset_tables/CYS_1319.xlsx` (Demo)
-* **Output**: `./full_dataset_tables/Plot/` (Demo)
+* **Input**: './full_dataset_tables/CYS_1319.xlsx' (Demo)
+* **Output**: './full_dataset_tables/Plot/' (Demo)
 
 > **Data Structure Description**: Contains extracted area ratios, normalized core color features, re-scaled Fisher weights, calculated CYS scores, and GMM-derived scientific grades (`CYS_1319_CYS_GMM_5Classes.xlsx`):
 >
@@ -192,8 +192,8 @@ H2.py estimates broad-sense heritability (H²) for phenotypic traits using Linea
 python scripts/H2.py
 ```
 
-* **Input**: `./full_dataset_tables/CYS_1319.xlsx` (Demo)
-* **Output**: `./full_dataset_tables/Plot/` (Demo)
+* **Input**: './full_dataset_tables/CYS_1319.xlsx' (Demo)
+* **Output**: './full_dataset_tables/Plot/' (Demo)
 
 ## Acknowledgments & Credits
 
