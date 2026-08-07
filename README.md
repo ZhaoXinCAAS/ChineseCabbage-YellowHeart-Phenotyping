@@ -5,7 +5,7 @@ Open-source Python scripts and phenotypic pipelines for automated yellow-heart r
 1. Threshold Adjustment for Illumination Variations: 
 Due to potential variations in image lighting and shooting environments, the threshold values for the Excess Red Index (ExR) and CIELAB color space b* may require empirical tuning. Users are encouraged to adjust these parameters flexibly based on their specific image datasets and actual experimental conditions.
 2. Integration with SAM 3 for Batch Segmentation: 
-For automated batch segmentation across diverse crop images, users can leverage the **Segment Anything Model 3 (SAM 3)** via [X-AnyLabeling](https://github.com/CVHub520/X-AnyLabeling). The pretrained **SAM 3 ViT-H** model supports text-prompted segmentation (e.g., inputting `"cabbage"`), allowing high-throughput mask generation. Pretrained ONNX checkpoints and model configurations can be obtained from the [X-AnyLabeling Model Zoo](https://github.com/CVHub520/X-AnyLabeling/blob/main/docs/en/model_zoo.md).
+For automated batch segmentation across diverse crop images, users can leverage the **Segment Anything Model 3 (SAM 3)** via [X-AnyLabeling](https://github.com/CVHub520/X-AnyLabeling). The pretrained **SAM 3 ViT-H** model supports text-prompted segmentation (e.g., inputting 'cabbage'), allowing high-throughput mask generation. Pretrained ONNX checkpoints and model configurations can be obtained from the [X-AnyLabeling Model Zoo](https://github.com/CVHub520/X-AnyLabeling/blob/main/docs/en/model_zoo.md).
 3. Scope and Methodology Disclaimer: 
 This repository provides the fundamental experimental framework and implementation scripts—including yellow-heart region segmentation, multidimensional color trait extraction, Gaussian Mixture Model (GMM) grading, and broad-sense heritability calculation—designed to offer a methodological reference and workflow pipeline for researchers. Specific parameter configurations, extracted phenotypic features, and final grading thresholds should be carefully calibrated and validated according to the specific biological characteristics of the target crop under investigation.
 
@@ -19,7 +19,7 @@ pip install -r requirements.txt
 The full-scale dataset is deposited on Figshare 
 
 ## Dataset & Project Structure
-To ensure complete reproducibility, the full high-throughput image dataset, segmentation masks, and phenotype grading visualization results are archived on **Figshare**. A lightweight test dataset (`./samples_images/`) is provided directly within this repository for a quick demo run.
+To ensure complete reproducibility, the full high-throughput image dataset, segmentation masks, and phenotype grading visualization results are archived on **Figshare**. A lightweight test dataset ('./samples_images/') is provided directly within this repository for a quick demo run.
 
 * **Full Dataset Access (Figshare)**: 
   * `data.zip` (~17.45 GB): Raw images, SAM3 predictions, and polygon annotation JSONs.
@@ -77,23 +77,23 @@ python scripts/Crop.py
 * **Output**: './samples_images/results/annotations_head_region/' (Demo) | './data/Annotations_head_region/' (Full Dataset)
 
 ## 5. Manual Annotation of Chinese cabbage head region:
-Use [X-AnyLabeling](https://github.com/CVHub520/X-AnyLabeling) to manually annotate the precise boundaries of both the head region and the short stem for each cropped single-cabbage cross-section image. The generated `.json` files are used for subsequent phenotypic feature and color analysis.
+Use [X-AnyLabeling](https://github.com/CVHub520/X-AnyLabeling) to manually annotate the precise boundaries of both the head region and the short stem for each cropped single-cabbage cross-section image. The generated '.json' files are used for subsequent phenotypic feature and color analysis.
 
 * **Tool**: X-AnyLabeling
 * **Label Classes**: 
   * `Pan_center_contour_area` (Polygon annotation for the main leaf-head region)
   * `Short_stem` (Polygon annotation for the internal short stem)
-* **Input**: `./samples_images/results/annotations_head_region/` (Demo) | `./data/Annotations_head_region/` (Full Dataset)
-* **Output**: `./samples_images/results/annotations_head_region/` (Demo) | `./data/Annotations_head_region/` (Full Dataset)
+* **Input**: './samples_images/results/annotations_head_region/' (Demo) | './data/Annotations_head_region/' (Full Dataset)
+* **Output**: './samples_images/results/annotations_head_region/' (Demo) | './data/Annotations_head_region/' (Full Dataset)
 
 ## 6. Automated Yellow-Heart Region Extraction
 
-Automated algorithm (Yellow_heart_region_segmentation_json.py) is used to extract the internal yellow-heart tissue within the annotated leaf-heading region (`Pan_center_contour_area`), excluding the short stem area.
+Automated algorithm (Yellow_heart_region_segmentation_json.py) is used to extract the internal yellow-heart tissue within the annotated leaf-heading region ('Pan_center_contour_area'), excluding the short stem area.
 ```bash
 python scripts/Yellow_heart_region_segmentation_json.py
 ```
-* **Input**: `./samples_images/results/annotations_head_region` (Demo) | `./data/Annotations_head_region/` (Full Dataset)
-* **Output**: `./samples_images/results/Auto_segment_Yellow_heart/` (Demo) | `./data/Auto_segment_Yellow_heart/` (Full Dataset)
+* **Input**: './samples_images/results/annotations_head_region' (Demo) | './data/Annotations_head_region/' (Full Dataset)
+* **Output**: './samples_images/results/Auto_segment_Yellow_heart/' (Demo) | './data/Auto_segment_Yellow_heart/' (Full Dataset)
 
 ## 7. Chinese cabbage and yellow-heart region segmentation:
 Automated Segmentation of Head Region and Yellow-Heart Trait
@@ -120,8 +120,8 @@ Figure: Demonstration of annotated head region masks and automated extraction of
 ```bash
 python scripts/Yellow_color_features_extract.py
 ```
-* **Input**: `./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/` (Full Dataset)
-* **Output**: `./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/roi_10_color_features_with_ratio.xlsx` (Full Dataset)
+* **Input**: './data/Auto_segment_Yellow_heart/True_Yellow_heart/json/' (Full Dataset)
+* **Output**: './data/Auto_segment_Yellow_heart/True_Yellow_heart/json/roi_10_color_features_with_ratio.xlsx' (Full Dataset)
 > **Data Structure Description**: Contains extracted area ratios and 10 multi-color-space feature values calculated for individual cabbage heads:
   >
   > | Column Header | Description |
@@ -137,12 +137,12 @@ python scripts/Yellow_color_features_extract.py
   > | `ExR_mean` | Mean Excess Red Index (ExR = 1.4R - G) |
 
 ## 9. Phenotypic Data Min-Max Normalization:
-`Min_Max.py` performs Min-Max normalization on the extracted raw phenotypic trait dataset to scale all feature values (e.g., area ratio and color parameters) into the range of [0, 1], eliminating scale differences for downstream analysis.
+`Min_Max.py` script performs Min-Max normalization on the 10 extracted color space parameters (e.g., RGB, HSV, CIELAB metrics, and ExR index) to scale their values into the range of [0, 1], eliminating dimensional differences for downstream Fisher discriminant and CYS model evaluation.
 ```bash
 python scripts/Min_Max.py
 ```
-* **Input**: `./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/roi_10_color_features_with_ratio.xlsx` (Full Dataset)
-* **Output**: `./samples_images/results/normalized_data_1319.xlsx` (Demo)
+* **Input**: './data/Auto_segment_Yellow_heart/True_Yellow_heart/json/roi_10_color_features_with_ratio.xlsx' (Full Dataset)
+* **Output**: './samples_images/results/normalized_data_1319.xlsx' (Demo)
 
 ## 10. Fisher Discriminant Score Calculation:
 `Fisher_scores.py` computes the Fisher discriminant score for each extracted phenotypic feature, evaluating its power to differentiate between distinct yellow-heart phenotype categories.
@@ -150,8 +150,8 @@ python scripts/Min_Max.py
 python scripts/Fisher_scores.py
 ```
 
-* **Input**: `./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/roi_10_color_features_with_ratio.xlsx` (Full Dataset) and `./data/Fisher_score_data/` (Full Dataset)
-* **Output**: `./samples_images/results/fisher_weights_418.xlsx` (Demo)
+* **Input**: './data/Auto_segment_Yellow_heart/True_Yellow_heart/json/roi_10_color_features_with_ratio.xlsx' (Full Dataset) and './data/Fisher_score_data/' (Full Dataset)
+* **Output**: './samples_images/results/fisher_weights_418.xlsx' (Demo)
 
 > **Data Structure Description**: Contains Fisher scores, response directions, and calculated composite weights (CYS weights) for 10 multi-color-space features (`fisher_weights_418.xlsx`):
 >
@@ -168,8 +168,8 @@ python scripts/Fisher_scores.py
 python scripts/GMM_CYS.py
 ```
 
-* **Input**: `./full_dataset_tables/CYS_1319.xlsx` (Demo)
-* **Output**: `./full_dataset_tables/Plot/` (Demo)
+* **Input**: './full_dataset_tables/CYS_1319.xlsx' (Demo)
+* **Output**: './full_dataset_tables/Plot/' (Demo)
 
 > **Data Structure Description**: Contains extracted area ratios, normalized core color features, re-scaled Fisher weights, calculated CYS scores, and GMM-derived scientific grades (`CYS_1319_CYS_GMM_5Classes.xlsx`):
 >
@@ -192,5 +192,12 @@ H2.py estimates broad-sense heritability (H²) for phenotypic traits using Linea
 python scripts/H2.py
 ```
 
-* **Input**: `./full_dataset_tables/CYS_1319.xlsx` (Demo)
-* **Output**: `./full_dataset_tables/Plot/` (Demo)
+* **Input**: './full_dataset_tables/CYS_1319.xlsx' (Demo)
+* **Output**: './full_dataset_tables/Plot/' (Demo)
+
+## Acknowledgments & Credits
+
+We express our sincere gratitude to the developers and open-source community behind **X-AnyLabeling** and the **Segment Anything Model 3 (SAM 3)**.
+
+* **[X-AnyLabeling](https://github.com/CVHub520/X-AnyLabeling)**: We thank the [CVHub](https://github.com/CVHub520) team for developing this powerful, multi-functional auto-annotation tool. Its seamless integration with state-of-the-art vision models substantially accelerated our manual region-of-interest (ROI) curation and polygon annotation workflows with intuitive visualization capabilities.
+* **[SAM 3 (Segment Anything Model 3)](https://github.com/CVHub520/X-AnyLabeling/blob/main/docs/en/model_zoo.md)**: We acknowledge the SAM 3 model architecture and pretrained weights ('SAM 3 ViT-H ONNX'), which enabled high-throughput, text-prompted automated segmentation of Chinese cabbage cross-section masks, significantly reducing annotation labor and enhancing experimental reproducibility.
