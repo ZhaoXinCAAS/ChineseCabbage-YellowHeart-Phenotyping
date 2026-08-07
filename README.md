@@ -62,8 +62,8 @@ ChineseCabbage-YellowHeart-Phenotyping/
 ## 3. Batch Segmentation with SAM 3 (Text-prompt):
 Utilizing SAM 3 with the text prompt "cabbage" to automatically perform high-throughput extraction of leaf-heading region masks from cross-section images.
 * **Tools & Models**: The pre-trained ONNX model files and X-AnyLabeling executable software are provided in `./data/SAM3_onnx/`.
-* **Input**: `./samples_images/results/Raw_images/` (Demo) | `./data/Raw_images/` (Full Dataset)
-* **Output**: `./samples_images/results/SAM3_predicted/` (Demo) | `./data/SAM3_predicted/` (Full Dataset)
+* **Input**: './samples_images/results/Raw_images/' (Demo) | './data/Raw_images/' (Full Dataset)
+* **Output**: './samples_images/results/SAM3_predicted/' (Demo) | './data/SAM3_predicted/' (Full Dataset)
 <p align="center">
   <img width="85%" alt="Yeqiu_predict" src="https://github.com/user-attachments/assets/2f37b9a9-11a8-4734-aed9-fb5d39ef488f" />
 </p>
