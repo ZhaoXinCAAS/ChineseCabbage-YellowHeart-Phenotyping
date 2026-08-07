@@ -77,7 +77,7 @@ python scripts/Crop.py
 * **Output**: './samples_images/results/annotations_head_region/' (Demo) | './data/Annotations_head_region/' (Full Dataset)
 
 ## 5. Manual Annotation of Chinese cabbage head region：
-Use [X-AnyLabeling](https://github.com/CVHub520/X-AnyLabeling) to manually annotate the precise boundaries of both the head region and the short stem for each cropped single-cabbage cross-section image. The generated `.json` files are used for subsequent phenotypic feature and color analysis.
+Use [X-AnyLabeling](https://github.com/CVHub520/X-AnyLabeling) to manually annotate the precise boundaries of both the head region and the short stem for each cropped single-cabbage cross-section image. The generated '.json' files are used for subsequent phenotypic feature and color analysis.
 
 * **Tool**: X-AnyLabeling
 * **Label Classes**: 
