@@ -137,7 +137,7 @@ python scripts/Yellow_color_features_extract.py
   > | `ExR_mean` | Mean Excess Red Index (ExR = 1.4R - G) |
 
 ## 9. Phenotypic Data Min-Max Normalization:
-`Min_Max.py` performs Min-Max normalization on the extracted raw phenotypic trait dataset to scale all feature values (e.g., area ratio and color parameters) into the range of [0, 1], eliminating scale differences for downstream analysis.
+`Min_Max.py` script performs Min-Max normalization on the 10 extracted color space parameters (e.g., RGB, HSV, CIELAB metrics, and ExR index) to scale their values into the range of [0, 1], eliminating dimensional differences for downstream Fisher discriminant and CYS model evaluation.
 ```bash
 python scripts/Min_Max.py
 ```
