@@ -19,7 +19,7 @@ pip install -r requirements.txt
 The full-scale dataset is deposited on Figshare 
 
 ## Dataset & Project Structure
-To ensure complete reproducibility, the full high-throughput image dataset, segmentation masks, and phenotype grading visualization results are archived on **Figshare**. A lightweight test dataset (`./samples_images/`) is provided directly within this repository for a quick demo run.
+To ensure complete reproducibility, the full high-throughput image dataset, segmentation masks, and phenotype grading visualization results are archived on **Figshare**. A lightweight test dataset ('./samples_images/') is provided directly within this repository for a quick demo run.
 
 * **Full Dataset Access (Figshare)**: 
   * `data.zip` (~17.45 GB): Raw images, SAM3 predictions, and polygon annotation JSONs.
