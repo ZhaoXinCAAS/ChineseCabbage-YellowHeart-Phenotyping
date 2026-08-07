@@ -83,8 +83,8 @@ Use [X-AnyLabeling](https://github.com/CVHub520/X-AnyLabeling) to manually annot
 * **Label Classes**: 
   * `Pan_center_contour_area` (Polygon annotation for the main leaf-head region)
   * `Short_stem` (Polygon annotation for the internal short stem)
-* **Input**: `./samples_images/results/annotations_head_region/` (Demo) | `./data/Annotations_head_region/` (Full Dataset)
-* **Output**: `./samples_images/results/annotations_head_region/` (Demo) | `./data/Annotations_head_region/` (Full Dataset)
+* **Input**: './samples_images/results/annotations_head_region/' (Demo) | './data/Annotations_head_region/' (Full Dataset)
+* **Output**: './samples_images/results/annotations_head_region/' (Demo) | './data/Annotations_head_region/' (Full Dataset)
 
 ## 6. Automated Yellow-Heart Region Extraction
 
@@ -92,8 +92,8 @@ Automated algorithm (Yellow_heart_region_segmentation_json.py) is used to extrac
 ```bash
 python scripts/Yellow_heart_region_segmentation_json.py
 ```
-* **Input**: `./samples_images/results/annotations_head_region` (Demo) | `./data/Annotations_head_region/` (Full Dataset)
-* **Output**: `./samples_images/results/Auto_segment_Yellow_heart/` (Demo) | `./data/Auto_segment_Yellow_heart/` (Full Dataset)
+* **Input**: './samples_images/results/annotations_head_region' (Demo) | './data/Annotations_head_region/' (Full Dataset)
+* **Output**: './samples_images/results/Auto_segment_Yellow_heart/' (Demo) | './data/Auto_segment_Yellow_heart/' (Full Dataset)
 
 ## 7. Chinese cabbage and yellow-heart region segmentation:
 Automated Segmentation of Head Region and Yellow-Heart Trait
