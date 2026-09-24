@@ -272,7 +272,51 @@ broad-heritability \
 ```
 
 * **Input**: `./samples_images/results/CYS_1319.xlsx` (Demo) | `./data/CYS_1319.xlsx` (Full Dataset)
-* **Output**: `./samples_images/results/Plot/` (Demo) | `./data/Plot/` (Full Dataset)
+## 11. Genome-Wide Association Study (GWAS) Interface
+
+`gwas.py` interfaces with the external [PLINK](https://www.cog-genomics.org/plink/) binary to perform association analysis mapping the quantitative CYS trait against genotype data (binary PED format: `.bed`, `.bim`, `.fam`).
+
+```bash
+gwas \
+  --geno-prefix ./data/genotypes \
+  --pheno ./samples_images/results/CYS_1319.xlsx \
+  --trait-col CYS \
+  --output ./data/gwas_results.csv \
+  --alpha 0.05
+```
+
+* **Input**: Genotype prefix (`.bed`/`.bim`/`.fam`), phenotype table (`.csv` or `.xlsx` containing `sample_id` and trait column)
+* **Output**: Filtered association results CSV (`SNP`, `CHR`, `BP`, `P`, etc.)
+
+## 12. Manhattan Plot Visualization
+
+`manhattan_plot.py` creates publication-quality Manhattan plots from GWAS association results, displaying significance ($5\times 10^{-8}$) and suggestive ($1\times 10^{-5}$) threshold lines, alternating chromosome colors, and annotating top candidate SNPs.
+
+```bash
+manhattan-plot \
+  --input ./data/gwas_results.csv \
+  --output ./data/Plot/manhattan_plot.png \
+  --title "Chinese Cabbage Yellow-Heart (CYS) GWAS"
+```
+
+* **Input**: GWAS results CSV (validated via `GwasColumns` contract: `SNP`, `CHR`, `BP`, `P`)
+* **Output**: Manhattan plot image (`.png` / `.pdf`)
+
+## 13. Candidate Gene Annotation
+
+`annotate_genes.py` maps significant GWAS peak SNPs against a reference gene annotation file (GTF/GFF or tab-delimited format: `chr`, `start`, `end`, `gene`) within a configurable flanking window (default: $\pm 500\,\text{kb}$).
+
+```bash
+annotate-genes \
+  --gwas ./data/gwas_results.csv \
+  --annotation ./data/genes_annotation.gtf \
+  --sig-threshold 5e-8 \
+  --window-bp 500000 \
+  --output ./data/annotated_candidate_genes.csv
+```
+
+* **Input**: GWAS results CSV and genomic annotation file
+* **Output**: Annotated CSV reporting nearest candidate genes, distance to gene boundaries, and all genes located within the flanking window
 
 ## Reproducibility
 

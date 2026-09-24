@@ -3061,7 +3061,6 @@ wheels = [
 
 [[package]]
 name = "yheart"
-version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "matplotlib" },
@@ -3119,4 +3118,4 @@ requires-dist = [
     { name = "statsmodels", specifier = ">=0.14" },
     { name = "types-seaborn", marker = "extra == 'dev'" },
 ]
-provides-extras = ["sam", "notebook", "dev"]
+provides-extras = ["dev", "notebook", "sam"]
