@@ -112,7 +112,12 @@ def main(argv: Sequence[str] | None = None):
         )
         sys.exit(1)
 
-    gwas_df = pd.read_csv(args.gwas, dtype={"SNP": str, "CHR": str})
+    try:
+        gwas_df = pd.read_csv(args.gwas, dtype={"SNP": str, "CHR": str})
+    except pd.errors.EmptyDataError:
+        print("GWAS file is empty.")
+        sys.exit(1)
+
     if gwas_df.empty:
         print("GWAS file is empty.")
         sys.exit(1)

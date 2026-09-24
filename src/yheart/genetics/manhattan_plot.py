@@ -77,7 +77,11 @@ def main(argv: Sequence[str] | None = None):
         print("Error: --input is required.")
         sys.exit(1)
 
-    df = pd.read_csv(args.input, dtype={"SNP": str, "CHR": str})
+    try:
+        df = pd.read_csv(args.input, dtype={"SNP": str, "CHR": str})
+    except pd.errors.EmptyDataError:
+        print("Error: Input CSV is empty.")
+        sys.exit(1)
 
     if df.empty:
         print("Error: Input CSV is empty.")
