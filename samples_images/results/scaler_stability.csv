@@ -1,0 +1,11 @@
+trait,scaler,mean_cross_pert_std
+Yellow_Ratio,minmax,0.0
+S_mean,minmax,0.977753
+b_mean,minmax,1.833455
+ExR_mean,minmax,1.248426
+B_mean,minmax,0.702601
+Yellow_Ratio,robust,0.0
+S_mean,robust,1.955505
+b_mean,robust,3.666911
+ExR_mean,robust,2.496852
+B_mean,robust,1.405203
