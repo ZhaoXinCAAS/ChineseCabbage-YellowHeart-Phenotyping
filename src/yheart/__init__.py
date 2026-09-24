@@ -22,4 +22,4 @@ stage is exposed as a console script (see ``pyproject.toml``
 ``[project.scripts]``); see ``README.md`` for the end-to-end workflow.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
