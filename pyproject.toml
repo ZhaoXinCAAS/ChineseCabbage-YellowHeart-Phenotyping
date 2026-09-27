@@ -3,7 +3,7 @@ name = "yheart"
 dynamic = ["version"]
 description = "Automated yellow-heart region segmentation, multidimensional color-space feature extraction, and quantitative grading (Comprehensive Yellow Score, CYS) for Chinese cabbage phenotyping."
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.14"
 license = { file = "LICENSE" }
 authors = [{name = "Yiwu Ouyang", email = "98174759+ou6326@users.noreply.github.com"}, { name = "ZhaoXinCAAS" }]
 keywords = [
@@ -19,7 +19,6 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
-    "Programming Language :: Python :: 3.14",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Topic :: Scientific/Engineering :: Image Processing",
@@ -36,6 +35,8 @@ dependencies = [
     "statsmodels>=0.14",
     "openpyxl>=3.1",
     "pandera>=0.33",
+    "scikit-allel>=1.3.13",
+    "pyplink>=1.3.9",
 ]
 
 [project.optional-dependencies]
