@@ -117,58 +117,91 @@ def main(argv: Sequence[str] | None = None):
     mapped = chr_col.map(offset_map).fillna(0).to_numpy()
     gdf["x"] = bp + mapped
 
+    # Use seaborn publication theme
+    sns.set_theme(style="ticks", font_scale=1.0)
+    fig, ax = plt.subplots(figsize=(10, 5), dpi=300)
+
     for chr_ in chrom_df["CHR"]:
         sub = cast(pd.DataFrame, gdf[gwas_col(gdf, "CHR") == chr_])
-        plt.scatter(
+        ax.scatter(
             sub["x"],
             sub["-log10P"],
-            s=20,
+            s=22,
             c=[color_map[chr_]],
             label=str(chr_),
+            alpha=0.85,
+            edgecolors="none",
         )
     if args.suggestive_threshold > 0:
-        plt.axhline(
+        ax.axhline(
             y=-np.log10(args.suggestive_threshold),
-            color="blue",
+            color="#2b5c8f",
             linestyle="--",
-            linewidth=1,
+            linewidth=1.2,
             label=f"Suggestive (P={args.suggestive_threshold})",
         )
-    plt.axhline(
+    ax.axhline(
         y=-np.log10(args.sig_threshold),
-        color="red",
+        color="#d93829",
         linestyle="--",
-        linewidth=1,
+        linewidth=1.2,
         label=f"Significant (P={args.sig_threshold})",
     )
 
-    top5 = gdf.nsmallest(5, columns="P")
-    for _, row in top5.iterrows():
-        plt.annotate(
+    # Smart peak lead SNP selection & non-crossing annotation:
+    # 1. Filter distinct peak loci (distance window >= 50kb or 5% of x-span)
+    sorted_candidates = gdf.sort_values(by="P").reset_index(drop=True)
+    lead_snps: list[pd.Series] = []
+    min_dist = (gdf["x"].max() - gdf["x"].min()) * 0.05
+    for _, cand in sorted_candidates.iterrows():
+        cand_x = cand["x"]
+        if not any(abs(cand_x - lead["x"]) < min_dist for lead in lead_snps):
+            lead_snps.append(cand)
+        if len(lead_snps) >= 5:
+            break
+
+    # If only 1-2 distinct peaks, include top sub-peaks but place labels strictly non-crossing
+    if len(lead_snps) < 5:
+        remaining = sorted_candidates[~sorted_candidates.index.isin([s.name for s in lead_snps])]
+        lead_snps.extend([row for _, row in remaining.head(5 - len(lead_snps)).iterrows()])
+
+    # Sort final annotated SNPs from left to right across genomic coordinates
+    lead_df = pd.DataFrame(lead_snps).sort_values(by="x").reset_index(drop=True)
+
+    # Annotate lead SNPs directly above the peak point without arrows
+    for _, row in lead_df.iterrows():
+        ax.annotate(
             str(row["SNP"]),
             xy=(row["x"], row["-log10P"]),
-            xytext=(5, 5),
+            xytext=(0, 6),
             textcoords="offset points",
-            fontsize=7,
-            alpha=0.8,
+            fontsize=7.5,
+            fontweight="normal",
+            ha="center",
+            va="bottom",
+            color="#222222",
         )
 
-    plt.xlabel(args.chr_label)
-    plt.ylabel("-log10(P)")
-    plt.title(args.title)
-    plt.tight_layout()
+    ax.set_xlabel(args.chr_label, labelpad=8)
+    ax.set_ylabel(r"$-\log_{10}(P)$", labelpad=8)
+    ax.set_title(args.title, pad=12, fontsize=12, fontweight="bold")
+    sns.despine(ax=ax, top=True, right=True)
 
-    plt.xticks(
+    # Ensure clean headroom at the top
+    y_max = max(ax.get_ylim()[1], -np.log10(args.sig_threshold) + 1.2)
+    ax.set_ylim(-0.2, y_max)
+
+    ax.set_xticks(
         chrom_df["center"],
         labels=[str(c) for c in chrom_df["CHR"]],
         rotation=45,
         ha="right",
     )
 
-    handles, labels = plt.gca().get_legend_handles_labels()
+    handles, labels = ax.get_legend_handles_labels()
     legend_handles = [h for h, lbl in zip(handles, labels, strict=False) if "P=" in lbl]
     legend_labels = [lbl for lbl in labels if "P=" in lbl]
-    plt.legend(legend_handles, legend_labels, loc="upper right")
+    ax.legend(legend_handles, legend_labels, loc="upper right", frameon=True, framealpha=0.9)
 
     plt.tight_layout()
     plt.savefig(args.output, dpi=300)

@@ -71,28 +71,56 @@ def parse_args(argv: Sequence[str] | None = None) -> AnnotateGenesArgs:
 
 
 def parse_annotation(path: str):
-    """Parse a minimal GTF/GFF-like annotation file into a DataFrame."""
+    """Parse a GTF/GFF3 or minimal 4-column tab-delimited annotation file into a DataFrame."""
     rows: list[GeneRecord] = []
-    for line in Path(path).read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        parts = line.split("\t")
-        if len(parts) < 4:
-            continue
-        try:
-            rows.append({
-                "chr": parts[0],
-                "start": int(parts[1]),
-                "end": int(parts[2]),
-                "gene": parts[3],
-            })
-        except ValueError:
-            continue
+    with Path(path).open(encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            parts = line.split("\t")
+            if len(parts) >= 9:
+                feature_type = parts[2].lower()
+                if feature_type not in ("gene", "mrna", "transcript"):
+                    continue
+                try:
+                    start, end = int(parts[3]), int(parts[4])
+                except ValueError:
+                    continue
+                gene_id = ""
+                for item in parts[8].split(";"):
+                    item = item.strip()
+                    if item.startswith("ID="):
+                        gene_id = item.split("=", 1)[1]
+                        break
+                    if item.startswith("Name="):
+                        gene_id = item.split("=", 1)[1]
+                        break
+                    if item.lower().startswith("gene_id"):
+                        gene_id = item.split(None, 1)[1].strip('"\'')
+                        break
+                if not gene_id:
+                    gene_id = parts[8].split(";")[0]
+                rows.append({
+                    "chr": parts[0],
+                    "start": start,
+                    "end": end,
+                    "gene": gene_id,
+                })
+            elif len(parts) >= 4:
+                try:
+                    rows.append({
+                        "chr": parts[0],
+                        "start": int(parts[1]),
+                        "end": int(parts[2]),
+                        "gene": parts[3],
+                    })
+                except ValueError:
+                    continue
     if not rows:
         raise ValueError(
             f"Annotation file {path} yielded no valid gene rows. "
-            "Expected format: tab-delimited with at least 4 columns (chr, start, end, gene)."
+            "Expected format: GFF3/GTF (9 columns) or tab-delimited (chr, start, end, gene)."
         )
     return pd.DataFrame(rows)
 
