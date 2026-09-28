@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import holoviews as hv
 import pandas as pd
 import pytest
 
@@ -115,3 +116,70 @@ def test_main_generates_interactive_html_successfully(tmp_path: Path) -> None:
 
     assert out_html.is_file()
     assert out_html.stat().st_size > 0
+
+
+@pytest.mark.parametrize(
+    "flag,value",
+    [
+        ("--sig-threshold", "0"),
+        ("--sig-threshold", "nan"),
+        ("--sig-threshold", "1.1"),
+        ("--suggestive-threshold", "-1"),
+        ("--suggestive-threshold", "inf"),
+    ],
+)
+def test_rejects_invalid_thresholds(flag: str, value: str) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        manhattan_plot.parse_args(["--input", "unused.csv", flag, value])
+    assert exc_info.value.code == 2
+
+
+def test_args_are_real_dataclass() -> None:
+    args = manhattan_plot.parse_args(["--input", "unused.csv", "--suggestive-threshold", "0"])
+    assert isinstance(args, manhattan_plot.ManhattanArgs)
+    assert args.suggestive_threshold == 0
+
+
+def test_lead_selection_distance_boundary_and_chromosomes() -> None:
+    frame = pd.DataFrame({
+        "SNP": ["best", "near", "boundary", "other"],
+        "CHR": ["1", "1", "1", "2"],
+        "BP": [0, 999_999, 1_000_000, 0],
+        "P": [1e-10, 1e-9, 1e-8, 1e-7],
+    })
+    leads = manhattan_plot._select_lead_snps(frame)
+    assert [lead["SNP"] for lead in leads] == ["best", "boundary", "other"]
+    assert len(manhattan_plot._select_lead_snps(frame, limit=2)) == 2
+
+
+@pytest.mark.parametrize("extension", ["png", "html"])
+def test_zero_position_and_zero_p_render(tmp_path: Path, extension: str) -> None:
+    source = tmp_path / "zero.csv"
+    pd.DataFrame({"SNP": ["zero"], "CHR": ["1"], "BP": [0], "P": [0.0]}).to_csv(source, index=False)
+    output = tmp_path / f"zero.{extension}"
+    manhattan_plot.main(["--input", str(source), "--output", str(output)])
+    assert output.stat().st_size > 0
+
+
+def test_large_coordinates_and_original_zero_p(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "large.csv"
+    pd.DataFrame({
+        "SNP": ["large", "zero"],
+        "CHR": ["1", "2"],
+        "BP": [3_000_000_000, 1],
+        "P": [0.0, 0.5],
+    }).to_csv(source, index=False)
+    captured: list[object] = []
+
+    def capture(layout: object, *args: object, **kwargs: object) -> None:
+        captured.append(layout)
+
+    monkeypatch.setattr(hv, "save", capture)
+    manhattan_plot.main(["--input", str(source)])
+    layout = captured[0]
+    assert isinstance(layout, hv.Overlay)
+    points = list(layout.values())[0]
+    assert points.data["x"].tolist() == [3_000_000_000, 3_000_000_001]
+    assert points.data["P"].tolist() == [0.0, 0.5]

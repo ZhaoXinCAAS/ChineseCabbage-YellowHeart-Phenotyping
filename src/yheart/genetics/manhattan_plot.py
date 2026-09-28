@@ -3,15 +3,22 @@
 from __future__ import annotations
 
 import argparse
+import math
 import re
 import sys
+from bisect import bisect_left
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import cast
 
 import holoviews as hv
+import matplotlib
 import numpy as np
 import pandas as pd
+
+matplotlib.use("Agg")
+from bokeh.core.properties import field as bokeh_field
+from bokeh.models import ColumnDataSource, CustomJS, Plot, Range1d, Segment, Text
 from pandera.errors import SchemaError
 
 from yheart.genetics.schemas import gwas_col, validate_gwas_table
@@ -90,12 +97,240 @@ def parse_args(argv: Sequence[str] | None = None) -> ManhattanArgs:
         default="Set2",
         help="Qualitative color palette (Set2, tab10, Dark2, Paired, GAPIT).",
     )
-    return cast(ManhattanArgs, p.parse_args(argv))
+    namespace = p.parse_args(argv)
+    args = ManhattanArgs(**vars(namespace))
+    if not math.isfinite(args.sig_threshold) or not 0 < args.sig_threshold <= 1:
+        p.error("--sig-threshold must be finite and in (0, 1].")
+    if not math.isfinite(args.suggestive_threshold) or not 0 <= args.suggestive_threshold <= 1:
+        p.error("--suggestive-threshold must be finite and in [0, 1].")
+    return args
 
 
 def _as_element(value: object) -> hv.Element:
     """Narrow a HoloViews element across third-party typing boundaries."""
     return cast(hv.Element, value)
+
+
+def _bokeh_label_layout(plot: object, element: object) -> None:
+    """Install collision-aware screen offsets that are recalculated as ranges change."""
+    handles = getattr(plot, "handles", {})
+    if not isinstance(handles, dict):
+        return
+    glyph = handles.get("glyph")
+    source = handles.get("source")
+    state = getattr(plot, "state", None)
+    frame = getattr(element, "data", None)
+    if (
+        not isinstance(glyph, Text)
+        or not isinstance(source, ColumnDataSource)
+        or not isinstance(state, Plot)
+        or not isinstance(frame, pd.DataFrame)
+    ):
+        return
+
+    source_data = dict(source.data)
+    source_data["_label_x"] = frame["x"].to_numpy()
+    source_data["_label_y"] = frame["-log10P"].to_numpy()
+    source_data["_label_text"] = frame["SNP"].astype(str).to_numpy()
+    source_data["x_offset"] = frame["x_offset"].to_numpy()
+    # Bokeh screen y offsets grow downward, while our layout uses upward-positive y.
+    source_data["y_offset"] = -frame["y_offset"].to_numpy()
+    source_data["text_align"] = frame["text_align"].to_numpy()
+    source.data = source_data
+    glyph.x_offset = bokeh_field("x_offset")
+    glyph.y_offset = bokeh_field("y_offset")
+    glyph.text_align = bokeh_field("text_align")
+
+    x_range = getattr(state, "x_range", None)
+    y_range = getattr(state, "y_range", None)
+    if not isinstance(x_range, Range1d) or not isinstance(y_range, Range1d):
+        return
+    x_start, x_end = x_range.start, x_range.end
+    y_start, y_end = y_range.start, y_range.end
+    if not (
+        isinstance(x_start, (int, float))
+        and isinstance(x_end, (int, float))
+        and isinstance(y_start, (int, float))
+        and isinstance(y_end, (int, float))
+    ):
+        return
+    xspan = float(x_end - x_start)
+    yspan = float(y_end - y_start)
+    width = float(BOKEH_WIDTH)
+    height = float(BOKEH_HEIGHT)
+    dx = frame["x_offset"].to_numpy(dtype=float)
+    dy = frame["y_offset"].to_numpy(dtype=float)
+    length = np.maximum(np.hypot(dx, dy), 1.0)
+    edge_radius = 6.0
+    x = frame["x"].to_numpy(dtype=float)
+    y = frame["-log10P"].to_numpy(dtype=float)
+    connector_source = ColumnDataSource(
+        data={
+            "x0": x + dx / length * edge_radius / width * xspan,
+            "y0": y + dy / length * edge_radius / height * yspan,
+            "x1": x + dx / width * xspan,
+            "y1": y + dy / height * yspan,
+        }
+    )
+    state.add_glyph(
+        connector_source,
+        Segment(
+            x0="x0", y0="y0", x1="x1", y1="y1", line_color="#555555", line_alpha=0.7, line_width=0.8
+        ),
+    )
+    callback = CustomJS(
+        args={
+            "source": source,
+            "connectors": connector_source,
+            "x_range": x_range,
+            "y_range": y_range,
+            "plot": state,
+        },
+        code="""
+const d = source.data;
+const xs = d._label_x, ys = d._label_y, names = d._label_text;
+const width = plot.inner_width, height = plot.inner_height;
+const xmin = Math.min(x_range.start, x_range.end), xmax = Math.max(x_range.start, x_range.end);
+const ymin = Math.min(y_range.start, y_range.end), ymax = Math.max(y_range.start, y_range.end);
+if (!(width > 0 && height > 0 && xmax > xmin && ymax > ymin)) return;
+const placed = [], xo = new Array(xs.length), yo = new Array(xs.length);
+const aligns = new Array(xs.length);
+const order = Array.from(xs.keys()).sort((a, b) => ys[b] - ys[a]);
+const candidates = [];
+for (const dy of [20, 36, 52, 68, 84, -20, -36, -52]) {
+  candidates.push({dx: 0, dy, align: "center"});
+  for (const dx of [-18, 18, -34, 34, -50, 50])
+    candidates.push({dx, dy, align: dx < 0 ? "right" : "left"});
+}
+for (const i of order) {
+  const px = (xs[i] - xmin) / (xmax - xmin) * width;
+  const py = (ys[i] - ymin) / (ymax - ymin) * height;
+  const tw = Math.max(24, String(names[i]).length * 5.2), th = 13;
+  let best = null;
+  for (const candidate of candidates) {
+      const {dx, dy, align} = candidate;
+      const left = align === "left" ? px + dx : align === "right" ? px + dx - tw : px + dx - tw / 2;
+      const right = left + tw;
+      const bottom = py + dy, top = bottom + th;
+      if (left < 4 || right > width - 4 || bottom < 4 || top > height - 4) continue;
+      let overlap = 0;
+      for (const r of placed)
+        overlap += Math.max(0, Math.min(right, r[2]) - Math.max(left, r[0]))
+          * Math.max(0, Math.min(top, r[3]) - Math.max(bottom, r[1]));
+      const cost = overlap * 1000 + Math.abs(dx) + Math.abs(dy) * 0.15;
+      if (best === null || cost < best.cost) best = {cost, dx, dy, align, left, bottom, right, top};
+  }
+  if (best === null) best = {
+    dx: 0, dy: 20, align: "center", left: px - tw / 2,
+    bottom: py + 20, right: px + tw / 2, top: py + 33,
+  };
+  xo[i] = best.dx;
+  aligns[i] = best.align;
+  // Bokeh screen y offsets grow downward; invert the upward-positive layout offset.
+  yo[i] = -best.dy;
+  placed.push([best.left, best.bottom, best.right, best.top]);
+}
+d.x_offset = xo;
+d.y_offset = yo;
+d.text_align = aligns;
+const xspan = x_range.end - x_range.start, yspan = y_range.end - y_range.start;
+const edgeRadius = 6;
+connectors.data = {
+  x0: xs.map((x, i) => {
+    const dx = xo[i], dy = -yo[i], norm = Math.hypot(dx, dy) || 1;
+    return x + dx / norm * edgeRadius / width * xspan;
+  }),
+  y0: ys.map((y, i) => {
+    const dx = xo[i], dy = -yo[i], norm = Math.hypot(dx, dy) || 1;
+    return y + dy / norm * edgeRadius / height * yspan;
+  }),
+  x1: xs.map((x, i) => x + xo[i] / width * xspan),
+  y1: ys.map((y, i) => y + -yo[i] / height * yspan),
+};
+source.change.emit();
+connectors.change.emit();
+""",
+    )
+    x_range.js_on_change("start", callback)
+    x_range.js_on_change("end", callback)
+    y_range.js_on_change("start", callback)
+    y_range.js_on_change("end", callback)
+    state.js_on_change("inner_width", callback)
+    state.js_on_change("inner_height", callback)
+
+
+def _position_bokeh_labels(
+    labels: pd.DataFrame,
+    total_x_len: float,
+    y_max: float,
+) -> pd.DataFrame:
+    """Greedily place labels in screen space, prioritizing the strongest peaks."""
+    positioned = labels.copy()
+    positioned["x_offset"] = 0.0
+    positioned["y_offset"] = 0.0
+    positioned["text_align"] = "center"
+    if positioned.empty:
+        return positioned
+
+    width, height = float(BOKEH_WIDTH), float(BOKEH_HEIGHT)
+    placed: list[tuple[float, float, float, float]] = []
+    candidates = [
+        (dx, dy, align)
+        for dy in (20, 36, 52, 68, 84, -20, -36, -52)
+        for dx, align in (
+            (0, "center"),
+            (-18, "right"),
+            (18, "left"),
+            (-34, "right"),
+            (34, "left"),
+            (-50, "right"),
+            (50, "left"),
+        )
+    ]
+    order = positioned.sort_values("-log10P", ascending=False).index
+    for idx in order:
+        row = positioned.loc[idx]
+        anchor_x = float(row["x"]) / total_x_len * width
+        anchor_y = float(row["-log10P"]) / y_max * height
+        text_width = max(24.0, len(str(row["SNP"])) * 5.2)
+        text_height = 13.0
+        choices: list[tuple[float, float, float, float, str, float, float]] = []
+        for dx, dy, align in candidates:
+            left = (
+                anchor_x + dx
+                if align == "left"
+                else anchor_x + dx - text_width
+                if align == "right"
+                else anchor_x + dx - text_width / 2
+            )
+            right = (
+                anchor_x + dx + text_width
+                if align == "left"
+                else anchor_x + dx
+                if align == "right"
+                else anchor_x + dx + text_width / 2
+            )
+            bottom = anchor_y + dy
+            top = bottom + text_height
+            if left < 4 or right > width - 4 or bottom < 4 or top > height - 4:
+                continue
+            overlap = sum(
+                max(0.0, min(right, r) - max(left, l)) * max(0.0, min(top, t) - max(bottom, b))
+                for l, b, r, t in placed
+            )
+            choices.append((overlap, abs(dx) + abs(dy) * 0.15, dx, dy, align, left, right))
+
+        if choices:
+            _, _, dx, dy, align, left, right = min(choices)
+            positioned.at[idx, "x_offset"] = dx
+            positioned.at[idx, "y_offset"] = dy
+            positioned.at[idx, "text_align"] = align
+            placed.append((left, anchor_y + dy, right, anchor_y + dy + text_height))
+        else:
+            # Keep a readable default gap even for peaks near the plot ceiling.
+            positioned.at[idx, "y_offset"] = 18.0
+            positioned.at[idx, "text_align"] = "center"
+    return positioned
 
 
 def lead_label_frame(
@@ -148,18 +383,37 @@ def lead_label_frame(
             break
 
     # Canvas boundary safety: ensure labels stay neatly within plot margins
-    for i in range(n):
-        half_w = w_box / 2.0
-        if lx[i] + half_w > total_x_len:
-            lx[i] = total_x_len - half_w
-        if lx[i] - half_w < 0:
-            lx[i] = half_w
+    lx = np.clip(lx, w_box / 2.0, total_x_len - w_box / 2.0)
 
     res["lx"] = lx
     res["ly"] = ly
     res["x_label"] = lx
     res["y_label"] = ly
     return res
+
+
+def _select_lead_snps(
+    frame: pd.DataFrame, *, window_bp: int = 1_000_000, limit: int | None = None
+) -> list[pd.Series]:
+    """Choose strongest peaks; only adjacent accepted positions need distance checks."""
+    ordered = frame.sort_values("P", kind="stable")
+    positions: dict[str, list[int]] = {}
+    selected: list[int] = []
+    for row, (chromosome, position) in enumerate(
+        zip(ordered["CHR"].astype(str), ordered["BP"], strict=True)
+    ):
+        bp = int(position)
+        accepted = positions.setdefault(chromosome, [])
+        slot = bisect_left(accepted, bp)
+        if slot > 0 and bp - accepted[slot - 1] < window_bp:
+            continue
+        if slot < len(accepted) and accepted[slot] - bp < window_bp:
+            continue
+        accepted.insert(slot, bp)
+        selected.append(row)
+        if limit is not None and len(selected) >= limit:
+            break
+    return [ordered.iloc[row] for row in selected]
 
 
 def main(argv: Sequence[str] | None = None) -> None:
@@ -185,13 +439,17 @@ def main(argv: Sequence[str] | None = None) -> None:
         print(f"Error: GWAS table failed validation: {e}")
         sys.exit(1)
 
-    gdf["P"] = gwas_col(gdf, "P").replace(0, 1e-300)
-    gdf = gdf[gwas_col(gdf, "P") > 0].copy()
+    p_values = gwas_col(gdf, "P")
+    valid = np.isfinite(p_values) & p_values.between(0, 1) & (gwas_col(gdf, "BP") >= 0)
+    rejected = int((~valid).sum())
+    if rejected:
+        print(f"Warning: Dropping {rejected} rows with invalid P values or negative BP.")
+    gdf = gdf[valid].copy()
     if gdf.empty:
-        print("Error: No valid P values (all zero or non-positive).")
+        print("Error: No valid GWAS rows (P must be finite in [0, 1] and BP nonnegative).")
         sys.exit(1)
 
-    gdf["-log10P"] = -np.log10(gwas_col(gdf, "P"))
+    gdf["-log10P"] = -np.log10(gwas_col(gdf, "P").clip(lower=1e-300))
     chr_col = gwas_col(gdf, "CHR")
 
     # 1. Natural chromosome ordering (e.g. A01..A10, chr1..chr10, 1..22)
@@ -235,41 +493,15 @@ def main(argv: Sequence[str] | None = None) -> None:
         cmap = args.palette
 
     sig_color = "#E41A1C"  # Red for significant hits (GAPIT SIG_COLOR)
-    suggest_color = "#FF7F00"  # Orange for suggestive line (GAPIT SUGGEST_COLOR)
+    suggest_color = "#6A1B9A"  # Deep purple contrasts with the chromosome point cloud.
 
     # 3. Peak lead SNP selection for annotation
-    lead_snps: list[pd.Series] = []
-    window_bp = 1_000_000
-
-    def is_distinct_peak(cand: pd.Series, existing: list[pd.Series]) -> bool:
-        for lead in existing:
-            if (
-                str(cand["CHR"]) == str(lead["CHR"])
-                and abs(int(cand["BP"]) - int(lead["BP"])) < window_bp
-            ):
-                return False
-        return True
-
     sig_mask = gdf["P"] <= args.sig_threshold
     if sig_mask.any():
-        for _, cand in gdf[sig_mask].sort_values(by="P").iterrows():
-            if is_distinct_peak(cand, lead_snps):
-                lead_snps.append(cand)
-
-    # If no significant SNPs exist, show top suggestive/general peaks
-    if not lead_snps:
-        suggest_mask = gdf["P"] <= args.suggestive_threshold
-        for _, cand in gdf[suggest_mask].sort_values(by="P").iterrows():
-            if is_distinct_peak(cand, lead_snps):
-                lead_snps.append(cand)
-            if len(lead_snps) >= 5:
-                break
-        if not lead_snps:
-            for _, cand in gdf.sort_values(by="P").iterrows():
-                if is_distinct_peak(cand, lead_snps):
-                    lead_snps.append(cand)
-                if len(lead_snps) >= 5:
-                    break
+        lead_snps = _select_lead_snps(gdf.loc[sig_mask])
+    else:
+        suggestive = gdf.loc[gdf["P"] <= args.suggestive_threshold]
+        lead_snps = _select_lead_snps(suggestive if not suggestive.empty else gdf, limit=5)
 
     max_stat = float(gdf["-log10P"].max())
     y_max = max(max_stat + 1.8, -np.log10(args.sig_threshold) + 2.0)
@@ -277,6 +509,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     total_x_len = max(
         float(gdf["x"].max() * 1.01),
         float(offset_map[last_chr] + chr_max_map[last_chr]),
+        1.0,
     )
 
     x_range = (0.0, float(total_x_len))
@@ -289,9 +522,9 @@ def main(argv: Sequence[str] | None = None) -> None:
         # at specific -log10P values and vertical voids in sparse centromeric regions),
         # we apply 2D screen-space grid downsampling across (x, -log10P).
         # This keeps the visual cloud silhouette smooth and void-free, guarantees all
-        # suggestive/significant peaks (-log10P >= 4.0) are 100% preserved, and ensures
+        # configured suggestive/significant peaks and P <= 1e-4 are preserved, and ensures
         # every retained point remains a real Bokeh glyph with active hover tooltips.
-        high_mask = gdf["-log10P"] >= 4.0
+        high_mask = gdf["P"] <= max(1e-4, args.sig_threshold, args.suggestive_threshold)
         low_df = gdf[~high_mask].copy()
 
         n_x_bins = 2500
@@ -302,16 +535,16 @@ def main(argv: Sequence[str] | None = None) -> None:
         low_df["x_bin"] = np.digitize(low_df["x"], x_bins)
         low_df["y_bin"] = np.digitize(low_df["-log10P"], y_bins)
 
-        sampled_low = low_df.groupby(["x_bin", "y_bin"], as_index=False).first()
+        sampled_low = low_df.drop_duplicates(subset=["x_bin", "y_bin"])
         sampled_low = sampled_low.drop(columns=["x_bin", "y_bin"])
         plot_df = pd.concat([sampled_low, gdf[high_mask]], ignore_index=True)
     else:
         plot_df = gdf.copy()
 
     # Cast fields for memory efficiency and tooltip precision
-    plot_df["x"] = plot_df["x"].astype("int32")
-    plot_df["-log10P"] = plot_df["-log10P"].round(3).astype("float32")
-    plot_df["BP"] = plot_df["BP"].astype("int32")
+    plot_df["x"] = plot_df["x"].astype("int64")
+    plot_df["-log10P"] = plot_df["-log10P"].astype("float32")
+    plot_df["BP"] = plot_df["BP"].astype("int64")
     plot_df["P"] = plot_df["P"].astype("float64")
     plot_df["CHR"] = pd.Categorical(
         plot_df["CHR"].astype(str), categories=unique_chrs, ordered=True
@@ -346,27 +579,14 @@ def main(argv: Sequence[str] | None = None) -> None:
             show_legend=False,
         )
 
-    # Threshold lines
     layers: list[hv.Element] = [_as_element(base_points)]
-    if backend == "bokeh":
-        s_line_opts = {"color": suggest_color, "line_dash": "dashed", "line_width": 1.2}
-        sig_line_opts = {"color": sig_color, "line_dash": "dashed", "line_width": 1.5}
-    else:
-        s_line_opts = {"color": suggest_color, "linestyle": "--", "linewidth": 1.0}
-        sig_line_opts = {"color": sig_color, "linestyle": "--", "linewidth": 1.2}
-
-    if args.suggestive_threshold > 0:
-        layers.append(
-            _as_element(hv.HLine(-np.log10(args.suggestive_threshold)).opts(**s_line_opts))
-        )
-    layers.append(_as_element(hv.HLine(-np.log10(args.sig_threshold)).opts(**sig_line_opts)))
 
     # Significant hits overlay
     if sig_mask.any():
         sig_df = gdf.loc[sig_mask, ["x", "-log10P", "SNP", "CHR", "BP", "P"]].copy()
-        sig_df["x"] = sig_df["x"].astype("int32")
-        sig_df["-log10P"] = sig_df["-log10P"].round(3).astype("float32")
-        sig_df["BP"] = sig_df["BP"].astype("int32")
+        sig_df["x"] = sig_df["x"].astype("int64")
+        sig_df["-log10P"] = sig_df["-log10P"].astype("float32")
+        sig_df["BP"] = sig_df["BP"].astype("int64")
         sig_df["P"] = sig_df["P"].astype("float64")
         sig_df["CHR"] = pd.Categorical(
             sig_df["CHR"].astype(str), categories=unique_chrs, ordered=True
@@ -386,7 +606,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                 line_color="#330000",
                 line_width=1,
                 tools=["hover"],
-                show_legend=False,
+                show_legend=True,
             )
         else:
             sig_pts = sig_pts.opts(
@@ -395,36 +615,122 @@ def main(argv: Sequence[str] | None = None) -> None:
                 alpha=0.95,
                 edgecolors="#330000",
                 linewidth=0.5,
-                show_legend=False,
+                show_legend=True,
             )
         layers.append(_as_element(sig_pts))
 
-    # Lead SNP text labels
-    lead_df = lead_label_frame(lead_snps, total_x_len=total_x_len, y_max=y_max)
+    # Threshold lines in legend
+    if backend == "bokeh":
+        s_line_opts = {
+            "color": suggest_color,
+            "line_dash": "dashed",
+            "line_width": 1.2,
+            "show_legend": True,
+        }
+        sig_line_opts = {
+            "color": sig_color,
+            "line_dash": "dashed",
+            "line_width": 1.5,
+            "show_legend": True,
+        }
+    else:
+        s_line_opts = {
+            "color": suggest_color,
+            "linestyle": "--",
+            "linewidth": 1.0,
+            "show_legend": True,
+        }
+        sig_line_opts = {
+            "color": sig_color,
+            "linestyle": "--",
+            "linewidth": 1.2,
+            "show_legend": True,
+        }
+
+    sig_y = -np.log10(args.sig_threshold)
+    sig_line = hv.Curve(
+        [(0.0, sig_y), (float(total_x_len), sig_y)],
+        label=f"Significant (P={args.sig_threshold:g})",
+    ).opts(**sig_line_opts)
+    layers.append(_as_element(sig_line))
+
+    if args.suggestive_threshold > 0:
+        s_y = -np.log10(args.suggestive_threshold)
+        s_line = hv.Curve(
+            [(0.0, s_y), (float(total_x_len), s_y)],
+            label=f"Suggestive (P={args.suggestive_threshold:g})",
+        ).opts(**s_line_opts)
+        layers.append(_as_element(s_line))
+
+    # Keep the established static layout; apply screen-space collision placement
+    # only to the interactive view, where it can be recalculated during zoom.
+    if backend == "bokeh":
+        lead_df = lead_label_frame(
+            lead_snps,
+            total_x_len=total_x_len,
+            y_max=y_max,
+            w_box_ratio=0.045,
+            pad_y=y_max * 0.025,
+            h_box=y_max * 0.035,
+        )
+    else:
+        lead_df = lead_label_frame(lead_snps, total_x_len=total_x_len, y_max=y_max)
     if lead_df is not None:
         if backend == "bokeh":
+            lead_df = _position_bokeh_labels(lead_df, total_x_len, y_max + 0.7)
+            lead_df["lx"] = lead_df["x"] + lead_df["x_offset"] * total_x_len / BOKEH_WIDTH
+            lead_df["ly"] = lead_df["-log10P"] + lead_df["y_offset"] * (y_max + 0.7) / BOKEH_HEIGHT
+        else:
+            lead_df["text_align"] = "center"
+        if backend != "bokeh":
+            static_width_px, static_height_px = 14.0 * 72.0, 5.5 * 72.0
+            x_shift_px = (lead_df["lx"] - lead_df["x"]) / total_x_len * static_width_px
+            y_shift_px = (
+                (lead_df["ly"] - lead_df["-log10P"]) / (ylim[1] - ylim[0]) * static_height_px
+            )
+            shift_len = np.maximum(np.hypot(x_shift_px, y_shift_px), 1.0)
+            segment_df = lead_df.assign(
+                x0=lead_df["x"] + x_shift_px / shift_len * 6.0 / static_width_px * total_x_len,
+                y0=lead_df["-log10P"]
+                + y_shift_px / shift_len * 6.0 / static_height_px * (ylim[1] - ylim[0]),
+            )
+            connectors = hv.Segments(
+                segment_df[["x0", "y0", "lx", "ly"]],
+                kdims=["x0", "y0", "lx", "ly"],
+            )
+            connectors = connectors.opts(color="#666666", alpha=0.65, linewidth=0.65)
+            layers.append(_as_element(connectors))
+        if backend == "bokeh":
+            # Keep each interactive label attached to its actual SNP coordinate.
+            # Collision-aware pixel offsets are recalculated when the user zooms.
             label_pts = hv.Labels(
-                lead_df[["lx", "ly", "SNP"]],
-                kdims=["lx", "ly"],
-                vdims=["SNP"],
+                lead_df[["x", "-log10P", "SNP", "x_offset", "y_offset", "text_align"]],
+                kdims=["x", "-log10P"],
+                vdims=["SNP", "x_offset", "y_offset", "text_align"],
             ).opts(
-                text_font_size="8pt",
+                text_font_size="7pt",
                 text_color="#111111",
                 text_baseline="bottom",
                 text_align="center",
+                show_legend=False,
+                hooks=[_bokeh_label_layout],
             )
+            layers.append(_as_element(label_pts))
         else:
-            label_pts = hv.Labels(
-                lead_df[["lx", "ly", "SNP"]],
-                kdims=["lx", "ly"],
-                vdims=["SNP"],
-            ).opts(
-                size=7.5,
-                color="#111111",
-                verticalalignment="bottom",
-                horizontalalignment="center",
-            )
-        layers.append(_as_element(label_pts))
+            for alignment, group in lead_df.groupby("text_align", sort=False):
+                label_pts = hv.Labels(
+                    group[["lx", "ly", "SNP"]],
+                    kdims=["lx", "ly"],
+                    vdims=["SNP"],
+                    label=f"Lead labels {alignment}",
+                ).opts(
+                    size=7.5,
+                    color="#111111",
+                    verticalalignment="bottom",
+                    horizontalalignment=str(alignment),
+                    show_legend=False,
+                )
+                layers.append(_as_element(label_pts))
 
     ticks = [(centers[c], c) for c in unique_chrs]
     manhattan_layout = hv.Overlay(layers)
@@ -440,7 +746,9 @@ def main(argv: Sequence[str] | None = None) -> None:
             xticks=ticks,
             width=BOKEH_WIDTH,
             height=BOKEH_HEIGHT,
-            show_legend=False,
+            show_legend=True,
+            legend_position="bottom",
+            legend_opts={"location": "bottom_right", "orientation": "horizontal"},
         )
         hv.save(manhattan_layout, args.output, backend="bokeh", resources="cdn")
         print(f"Interactive Bokeh Manhattan plot saved to: {args.output}")
@@ -455,7 +763,8 @@ def main(argv: Sequence[str] | None = None) -> None:
                 xticks=ticks,
                 aspect=2.5,
                 fig_inches=(14, 5.5),
-                show_legend=False,
+                show_legend=True,
+                legend_position="top_right",
             )
         )
         hv.save(manhattan_layout, args.output, backend="matplotlib", dpi=300)
