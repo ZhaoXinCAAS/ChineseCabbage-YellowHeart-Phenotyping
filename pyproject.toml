@@ -133,3 +133,9 @@ reportImplicitStringConcatenation = false
 reportUnreachable = false
 reportInvalidCast = false
 reportUnknownMemberType = false
+reportUnknownArgumentType = false
+reportUnknownVariableType = false
+reportUnknownLambdaType = false
+reportUnknownParameterType = false
+reportMissingParameterType = false
+
