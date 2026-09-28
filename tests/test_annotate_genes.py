@@ -12,8 +12,10 @@ from yheart.genetics import annotate_genes
 
 def test_parse_args_defaults() -> None:
     args = annotate_genes.parse_args([
-        "--gwas", "gwas.csv",
-        "--annotation", "genes.gtf",
+        "--gwas",
+        "gwas.csv",
+        "--annotation",
+        "genes.gtf",
     ])
     assert args.gwas == "gwas.csv"
     assert args.annotation == "genes.gtf"
@@ -25,9 +27,7 @@ def test_parse_args_defaults() -> None:
 def test_parse_annotation_valid(tmp_path: Path) -> None:
     gtf_file = tmp_path / "test.gtf"
     gtf_file.write_text(
-        "# comment header\n"
-        "chr1\t1000\t2000\tBra01\n"
-        "chr2\t5000\t6000\tBra02\n",
+        "# comment header\nchr1\t1000\t2000\tBra01\nchr2\t5000\t6000\tBra02\n",
         encoding="utf-8",
     )
     df = annotate_genes.parse_annotation(str(gtf_file))
@@ -76,10 +76,14 @@ def test_main_handles_no_significant_snps(tmp_path: Path) -> None:
     out_file = tmp_path / "annotated.csv"
     with pytest.raises(SystemExit) as exc_info:
         annotate_genes.main([
-            "--gwas", str(gwas_file),
-            "--annotation", str(annot_file),
-            "--output", str(out_file),
-            "--sig-threshold", "5e-8",
+            "--gwas",
+            str(gwas_file),
+            "--annotation",
+            str(annot_file),
+            "--output",
+            str(out_file),
+            "--sig-threshold",
+            "5e-8",
         ])
     assert exc_info.value.code == 0
     assert out_file.is_file()
@@ -99,19 +103,22 @@ def test_main_annotates_significant_snps(tmp_path: Path) -> None:
 
     annot_file = tmp_path / "genes.gtf"
     annot_file.write_text(
-        "chr1\t1000\t2000\tBra01001\n"
-        "chr1\t1800\t2500\tBra01002\n"
-        "chr2\t1000\t2000\tBra02001\n",
+        "chr1\t1000\t2000\tBra01001\nchr1\t1800\t2500\tBra01002\nchr2\t1000\t2000\tBra02001\n",
         encoding="utf-8",
     )
 
     out_file = tmp_path / "annotated.csv"
     annotate_genes.main([
-        "--gwas", str(gwas_file),
-        "--annotation", str(annot_file),
-        "--output", str(out_file),
-        "--sig-threshold", "1e-5",
-        "--window-bp", "10000",
+        "--gwas",
+        str(gwas_file),
+        "--annotation",
+        str(annot_file),
+        "--output",
+        str(out_file),
+        "--sig-threshold",
+        "1e-5",
+        "--window-bp",
+        "10000",
     ])
 
     assert out_file.is_file()

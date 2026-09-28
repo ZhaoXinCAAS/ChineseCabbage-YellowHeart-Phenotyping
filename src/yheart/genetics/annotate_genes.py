@@ -97,7 +97,7 @@ def parse_annotation(path: str):
                         gene_id = item.split("=", 1)[1]
                         break
                     if item.lower().startswith("gene_id"):
-                        gene_id = item.split(None, 1)[1].strip('"\'')
+                        gene_id = item.split(None, 1)[1].strip("\"'")
                         break
                 if not gene_id:
                     gene_id = parts[8].split(";")[0]

@@ -78,7 +78,7 @@ def load_fisher_weights(path: str, top_k: int = DEFAULT_TOP_K) -> dict[str, tupl
             signs.append(1 if w >= 0 else -1)
     order: np.ndarray = np.argsort([abs(w) for w in weights])[::-1][:top_k]
     selected: list[tuple[str, float, int]] = [
-        (str(names.iloc[int(i)]), weights[int(i)], signs[int(i)]) for i in order
+        (names.iloc[int(i)], weights[int(i)], signs[int(i)]) for i in order
     ]
     total = sum(abs(w) for _, w, _ in selected) or 1.0
     return {n: (abs(w) / total, s) for n, w, s in selected}

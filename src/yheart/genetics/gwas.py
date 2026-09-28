@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import contextlib
 import os
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -17,8 +16,6 @@ from typing import cast
 import numpy as np
 import pandas as pd
 from scipy import stats
-
-from yheart.genetics.schemas import validate_gwas_table
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,6 +33,8 @@ class GwasArgs:
     alpha: float
     max_variants: int | None
     min_maf: float
+    checkpoint_interval: int
+    resume: bool
 
 
 def parse_args(argv: Sequence[str] | None = None) -> GwasArgs:
@@ -107,6 +106,17 @@ def parse_args(argv: Sequence[str] | None = None) -> GwasArgs:
         default=0.05,
         help="Minor allele frequency threshold for native testing (default: 0.05).",
     )
+    p.add_argument(
+        "--checkpoint-interval",
+        type=int,
+        default=5000,
+        help="Checkpoint save interval in variants tested (default: 5000).",
+    )
+    p.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume native GWAS from existing checkpoint file if present.",
+    )
     args = p.parse_args(argv)
     return cast(GwasArgs, args)
 
@@ -120,9 +130,12 @@ def run_gwas_native(
     alpha: float = 0.05,
     max_variants: int | None = None,
     min_maf: float = 0.05,
+    checkpoint_interval: int = 5000,
+    resume: bool = False,
 ) -> pd.DataFrame:
     """Perform native single-variant ordinary least squares linear regression via scikit-allel."""
     import allel
+    from tqdm import tqdm
 
     if not Path(vcf_path).is_file():
         raise FileNotFoundError(f"VCF file not found: {vcf_path}")
@@ -134,7 +147,11 @@ def run_gwas_native(
     else:
         raw_pheno = pd.read_csv(pheno_path)
 
-    id_col = sample_col if sample_col in raw_pheno.columns else ("QR" if "QR" in raw_pheno.columns else None)
+    id_col = (
+        sample_col
+        if sample_col in raw_pheno.columns
+        else ("QR" if "QR" in raw_pheno.columns else None)
+    )
     if not id_col:
         raise KeyError(f"Phenotype table missing sample column (looked for '{sample_col}', 'QR').")
     if trait_col not in raw_pheno.columns:
@@ -151,7 +168,7 @@ def run_gwas_native(
     # Map phenotype values to VCF samples; support year prefix matching if exact match not found
     exact_map = {str(k): float(v) for k, v in pheno_series.items()}
     # Fallback suffix map (e.g. 24CC0440 -> CC0440, matching 22CC0440)
-    suffix_map = {str(k)[4:]: float(v) for k, v in exact_map.items() if len(str(k)) > 4}
+    suffix_map = {k[4:]: float(v) for k, v in exact_map.items() if len(k) > 4}
 
     matched_indices: list[int] = []
     y_values: list[float] = []
@@ -170,89 +187,153 @@ def run_gwas_native(
             f"and Phenotype ({len(exact_map)} samples)."
         )
 
-    print(f"Native GWAS: matched {len(matched_indices)} phenotype samples with VCF genotype samples.")
+    print(
+        f"Native GWAS: matched {len(matched_indices)} phenotype samples with VCF genotype samples."
+    )
     y = np.array(y_values, dtype=np.float64)
     # Center phenotype
     y_centered = y - np.mean(y)
-    ss_y = float(np.sum(y_centered**2))
-    n_samples = len(y)
-    deg_freedom = n_samples - 2
+
+    # Checkpoint configuration
+    checkpoint_path = Path(f"{output_path}.checkpoint.csv")
+    completed_snps: set[str] = set()
+    initial_tested = 0
+    initial_sig = 0
+
+    if resume and checkpoint_path.is_file():
+        try:
+            ckpt_df = pd.read_csv(checkpoint_path, dtype={"SNP": str, "CHR": str})
+            completed_snps = set(ckpt_df["SNP"].dropna().tolist())
+            initial_tested = len(ckpt_df)
+            initial_sig = (ckpt_df["P"] < alpha).sum() if "P" in ckpt_df.columns else 0
+            print(f"Resuming GWAS from checkpoint: {len(completed_snps)} variants already tested.")
+        except Exception as e:
+            print(f"Warning: Failed to load checkpoint ({e}), starting fresh.")
+            completed_snps = set()
+    else:
+        # If not resuming or starting fresh, remove old checkpoint file if it exists
+        if checkpoint_path.is_file():
+            checkpoint_path.unlink()
 
     # Read VCF chunks and compute linear regression per variant
-    fields = ["variants/CHROM", "variants/POS", "variants/ID", "variants/REF", "variants/ALT", "calldata/GT"]
-    results: list[dict[str, object]] = []
+    fields = [
+        "variants/CHROM",
+        "variants/POS",
+        "variants/ID",
+        "variants/REF",
+        "variants/ALT",
+        "calldata/GT",
+    ]
+    results_buffer: list[dict[str, object]] = []
 
-    tested_count = 0
+    tested_count = initial_tested
+    sig_count = initial_sig
+
     # Use chunked iterator for memory-efficient streaming across massive VCFs
     chunk_size = 5000
-    _, _, _, chunk_iter = allel.iter_vcf_chunks(vcf_path, fields=fields, chunk_length=chunk_size, numbers={"calldata/GT": 2})
-    for chunk_tuple in chunk_iter:
-        chunk = chunk_tuple[0]  # Dictionary of arrays
-        chroms = chunk["variants/CHROM"]
-        positions = chunk["variants/POS"]
-        var_ids = chunk["variants/ID"]
-        refs = chunk["variants/REF"]
-        alts = chunk["variants/ALT"]
-        # shape: (n_variants, n_vcf_samples, 2)
-        gt_raw = chunk["calldata/GT"][:, matched_indices, :]
-        gt = allel.GenotypeArray(gt_raw)
-        dosages = gt.to_n_alt(fill=-1).astype(np.float64)  # 0, 1, 2, or -1 (missing)
+    pbar = tqdm(total=max_variants, unit="variant", desc="GWAS Progress", dynamic_ncols=True)
+    if initial_tested > 0:
+        pbar.update(initial_tested)
 
-        n_variants = len(positions)
-        for i in range(n_variants):
-            x = dosages[i]
-            valid_mask = x >= 0
-            n_valid = int(np.sum(valid_mask))
-            if n_valid < 10:
-                continue
+    def flush_checkpoint():
+        nonlocal results_buffer
+        if not results_buffer:
+            return
+        buffer_df = pd.DataFrame(results_buffer)
+        write_header = not checkpoint_path.exists()
+        buffer_df.to_csv(checkpoint_path, mode="a", header=write_header, index=False)
+        results_buffer = []
 
-            x_v = x[valid_mask]
-            # Check MAF
-            allele_freq = float(np.mean(x_v)) / 2.0
-            maf = min(allele_freq, 1.0 - allele_freq)
-            if maf < min_maf:
-                continue
+    _, _, _, chunk_iter = allel.iter_vcf_chunks(
+        vcf_path, fields=fields, chunk_length=chunk_size, numbers={"calldata/GT": 2}
+    )
+    try:
+        for chunk_tuple in chunk_iter:
+            chunk = chunk_tuple[0]  # Dictionary of arrays
+            chroms = chunk["variants/CHROM"]
+            positions = chunk["variants/POS"]
+            var_ids = chunk["variants/ID"]
+            alts = chunk["variants/ALT"]
+            # shape: (n_variants, n_vcf_samples, 2)
+            gt_raw = chunk["calldata/GT"][:, matched_indices, :]
+            gt = allel.GenotypeArray(gt_raw)
+            dosages = gt.to_n_alt(fill=-1).astype(np.float64)  # 0, 1, 2, or -1 (missing)
 
-            y_v = y_centered[valid_mask]
-            x_centered = x_v - np.mean(x_v)
-            ss_x = float(np.sum(x_centered**2))
-            if ss_x < 1e-12:
-                continue
+            n_variants = len(positions)
+            for i in range(n_variants):
+                var_id = str(var_ids[i])
+                if not var_id or var_id == ".":
+                    var_id = f"{chroms[i]}_{positions[i]}"
 
-            s_xy = float(np.sum(x_centered * y_v))
-            beta = s_xy / ss_x
-            ss_res = max(0.0, float(np.sum(y_v**2)) - beta * s_xy)
-            se = np.sqrt(ss_res / (max(1, n_valid - 2) * ss_x))
-            if se <= 0 or np.isnan(se):
-                continue
+                if completed_snps and var_id in completed_snps:
+                    continue
 
-            t_stat = beta / se
-            p_val = float(2.0 * stats.t.sf(np.abs(t_stat), df=n_valid - 2))
-            if np.isnan(p_val):
-                continue
+                x = dosages[i]
+                valid_mask = x >= 0
+                n_valid = int(np.sum(valid_mask))
+                if n_valid < 10:
+                    continue
 
-            var_id = str(var_ids[i])
-            if not var_id or var_id == ".":
-                var_id = f"{chroms[i]}_{positions[i]}"
+                x_v = x[valid_mask]
+                # Check MAF
+                allele_freq = float(np.mean(x_v)) / 2.0
+                maf = min(allele_freq, 1.0 - allele_freq)
+                if maf < min_maf:
+                    continue
 
-            alt_allele = alts[i][0] if isinstance(alts[i], (list, np.ndarray)) else str(alts[i])
-            results.append({
-                "CHR": str(chroms[i]),
-                "SNP": var_id,
-                "BP": int(positions[i]),
-                "A1": str(alt_allele),
-                "BETA": float(beta),
-                "SE": float(se),
-                "P": float(p_val),
-            })
-            tested_count += 1
+                y_v = y_centered[valid_mask]
+                x_centered = x_v - np.mean(x_v)
+                ss_x = float(np.sum(x_centered**2))
+                if ss_x < 1e-12:
+                    continue
+
+                s_xy = float(np.sum(x_centered * y_v))
+                beta = s_xy / ss_x
+                ss_res = max(0.0, float(np.sum(y_v**2)) - beta * s_xy)
+                se = np.sqrt(ss_res / (max(1, n_valid - 2) * ss_x))
+                if se <= 0 or np.isnan(se):
+                    continue
+
+                t_stat = beta / se
+                p_val = float(2.0 * stats.t.sf(np.abs(t_stat), df=n_valid - 2))
+                if np.isnan(p_val):
+                    continue
+
+                alt_allele = alts[i][0] if isinstance(alts[i], (list, np.ndarray)) else str(alts[i])
+                results_buffer.append({
+                    "CHR": str(chroms[i]),
+                    "SNP": var_id,
+                    "BP": int(positions[i]),
+                    "A1": str(alt_allele),
+                    "BETA": float(beta),
+                    "SE": float(se),
+                    "P": p_val,
+                })
+                tested_count += 1
+                if p_val < alpha:
+                    sig_count += 1
+
+                pbar.update(1)
+                pbar.set_postfix({"tested": tested_count, f"P<{alpha}": sig_count})
+
+                if checkpoint_interval > 0 and len(results_buffer) >= checkpoint_interval:
+                    flush_checkpoint()
+
+                if max_variants and tested_count >= max_variants:
+                    break
+
             if max_variants and tested_count >= max_variants:
                 break
+    finally:
+        flush_checkpoint()
+        pbar.close()
 
-        if max_variants and tested_count >= max_variants:
-            break
+    # Consolidate results from checkpoint file or in-memory
+    if checkpoint_path.is_file():
+        res_df = pd.read_csv(checkpoint_path, dtype={"SNP": str, "CHR": str})
+    else:
+        res_df = pd.DataFrame(results_buffer)
 
-    res_df = pd.DataFrame(results)
     if res_df.empty:
         print("Warning: No variants satisfied quality/MAF filters.")
         empty_res = pd.DataFrame(columns=["CHR", "SNP", "BP", "A1", "BETA", "SE", "P"])
@@ -261,14 +342,18 @@ def run_gwas_native(
 
     # Sort by chromosome and position
     res_df = res_df.sort_values(by=["CHR", "BP"]).reset_index(drop=True)
-    if alpha < 1.0:
-        sig_df = res_df[res_df["P"] < alpha]
-    else:
-        sig_df = res_df
-
+    sig_df = res_df[res_df["P"] < alpha] if alpha < 1.0 else res_df
     sig_df.to_csv(output_path, index=False)
-    print(f"Native GWAS complete. Tested: {len(res_df)} SNPs, Significant (P < {alpha}): {len(sig_df)}")
+    print(
+        f"Native GWAS complete. Tested: {len(res_df)} SNPs, "
+        f"Significant (P < {alpha}): {len(sig_df)}"
+    )
     print(f"Results saved to: {output_path}")
+
+    # Remove temporary checkpoint on successful completion
+    if checkpoint_path.is_file():
+        checkpoint_path.unlink()
+
     return res_df
 
 
@@ -387,6 +472,8 @@ def main(argv: Sequence[str] | None = None):
             alpha=args.alpha,
             max_variants=args.max_variants,
             min_maf=args.min_maf,
+            checkpoint_interval=args.checkpoint_interval,
+            resume=args.resume,
         )
     else:
         run_gwas_plink(args)

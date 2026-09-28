@@ -13,8 +13,10 @@ from yheart.genetics import gwas
 
 def test_parse_args_defaults() -> None:
     args = gwas.parse_args([
-        "--geno-prefix", "sample_prefix",
-        "--pheno", "traits.csv",
+        "--geno-prefix",
+        "sample_prefix",
+        "--pheno",
+        "traits.csv",
     ])
     assert args.geno_prefix == "sample_prefix"
     assert args.pheno == "traits.csv"
@@ -43,8 +45,10 @@ def test_main_exits_when_geno_missing(tmp_path: Path) -> None:
     ):
         mock_run.return_value = MagicMock(returncode=0)
         gwas.main([
-            "--geno-prefix", str(tmp_path / "missing_prefix"),
-            "--pheno", "fake.csv",
+            "--geno-prefix",
+            str(tmp_path / "missing_prefix"),
+            "--pheno",
+            "fake.csv",
         ])
     assert exc_info.value.code == 1
 
@@ -60,8 +64,10 @@ def test_main_raises_when_pheno_missing(tmp_path: Path) -> None:
     ):
         mock_run.return_value = MagicMock(returncode=0)
         gwas.main([
-            "--geno-prefix", str(prefix),
-            "--pheno", str(tmp_path / "missing_pheno.csv"),
+            "--geno-prefix",
+            str(prefix),
+            "--pheno",
+            str(tmp_path / "missing_pheno.csv"),
         ])
 
 
@@ -79,8 +85,10 @@ def test_main_raises_when_pheno_missing_required_columns(tmp_path: Path) -> None
     ):
         mock_run.return_value = MagicMock(returncode=0)
         gwas.main([
-            "--geno-prefix", str(prefix),
-            "--pheno", str(pheno_file),
+            "--geno-prefix",
+            str(prefix),
+            "--pheno",
+            str(pheno_file),
         ])
 
 
@@ -104,9 +112,9 @@ def test_main_end_to_end_mocked(tmp_path: Path) -> None:
             out_idx = cmd.index("--out")
             tmp_pfx = cmd[out_idx + 1]
             assoc_content = (
-                " CHR         SNP         BP   A1       F_A       F_U   A2        CHISQ            P           OR \n"
-                "   1        rs01        100    A       0.5       0.2    G        10.5      0.001          2.5 \n"
-                "   1        rs02        200    T       0.1       0.1    C         0.1      0.800          1.0 \n"
+                " CHR  SNP   BP  A1  F_A  F_U  A2  CHISQ     P   OR \n"
+                "   1 rs01  100   A  0.5  0.2   G   10.5 0.001  2.5 \n"
+                "   1 rs02  200   T  0.1  0.1   C    0.1 0.800  1.0 \n"
             )
             Path(tmp_pfx + ".assoc").write_text(assoc_content, encoding="utf-8")
             return MagicMock(returncode=0)
@@ -114,10 +122,14 @@ def test_main_end_to_end_mocked(tmp_path: Path) -> None:
 
     with patch("subprocess.run", side_effect=fake_subprocess_run):
         gwas.main([
-            "--geno-prefix", str(prefix),
-            "--pheno", str(pheno_file),
-            "--output", str(out_file),
-            "--alpha", "0.05",
+            "--geno-prefix",
+            str(prefix),
+            "--pheno",
+            str(pheno_file),
+            "--output",
+            str(out_file),
+            "--alpha",
+            "0.05",
         ])
 
     assert out_file.is_file()

@@ -37,6 +37,10 @@ dependencies = [
     "pandera>=0.33",
     "scikit-allel>=1.3.13",
     "pyplink>=1.3.9",
+    "tqdm>=4.70.1",
+    "holoviews>=1.23.2",
+    "bokeh>=3.10.0",
+    "datashader>=0.19.1",
 ]
 
 [project.optional-dependencies]
@@ -147,3 +151,13 @@ reportImplicitStringConcatenation = false
 reportUnreachable = false
 reportInvalidCast = false
 reportUnknownMemberType = false
+reportUnknownArgumentType = false
+reportUnknownVariableType = false
+reportUnknownLambdaType = false
+reportUnknownParameterType = false
+reportMissingParameterType = false
+
+[dependency-groups]
+dev = [
+    "types-tqdm>=4.70.0.20260906",
+]

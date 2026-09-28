@@ -274,10 +274,28 @@ broad-heritability \
 * **Input**: `./samples_images/results/CYS_1319.xlsx` (Demo) | `./data/CYS_1319.xlsx` (Full Dataset)
 ## 11. Genome-Wide Association Study (GWAS) Interface
 
-`gwas.py` interfaces with the external [PLINK](https://www.cog-genomics.org/plink/) binary to perform association analysis mapping the quantitative CYS trait against genotype data (binary PED format: `.bed`, `.bim`, `.fam`).
+`gwas.py` supports two execution engines to map the quantitative CYS trait against genotype data:
+1. **Native Python Engine** (zero external dependencies): uses `scikit-allel` and `numpy` for chunked streaming regression directly on `.vcf` or `.vcf.gz` files. Supports interactive progress bars (`tqdm`), automatic sample matching, incremental checkpointing (`--checkpoint-interval`), and resuming from interruption (`--resume`).
+2. **PLINK Engine**: interfaces with an external [PLINK](https://www.cog-genomics.org/plink/) binary for binary PED format (`.bed`, `.bim`, `.fam`).
 
 ```bash
+# 1. Native Python GWAS (VCF input with progress & checkpoint saving)
 gwas \
+  --method native \
+  --vcf ./GWASData/SNPs/AA_AABB.snp.clean.rapa.maf0.05.recode.vcf.gz \
+  --pheno ./full_dataset_tables/CYS_1319.xlsx \
+  --trait-col CYS \
+  --sample-col QR \
+  --output ./GWASData/gwas_results.csv \
+  --checkpoint-interval 5000 \
+  --alpha 0.05
+
+# Resume interrupted run
+gwas --method native --vcf ... --pheno ... --output ./GWASData/gwas_results.csv --resume
+
+# 2. PLINK Binary GWAS (BED/BIM/FAM input)
+gwas \
+  --method plink \
   --geno-prefix ./data/genotypes \
   --pheno ./samples_images/results/CYS_1319.xlsx \
   --trait-col CYS \
@@ -285,22 +303,35 @@ gwas \
   --alpha 0.05
 ```
 
-* **Input**: Genotype prefix (`.bed`/`.bim`/`.fam`), phenotype table (`.csv` or `.xlsx` containing `sample_id` and trait column)
-* **Output**: Filtered association results CSV (`SNP`, `CHR`, `BP`, `P`, etc.)
+* **Input**: VCF file (`.vcf`/`.vcf.gz`) or PLINK binary genotype prefix (`.bed`/`.bim`/`.fam`), phenotype table (`.csv` or `.xlsx` containing `sample_id` or `QR` and trait column)
+* **Output**: Filtered association results CSV (`CHR`, `SNP`, `BP`, `A1`, `BETA`, `SE`, `P`)
 
 ## 12. Manhattan Plot Visualization
 
-`manhattan_plot.py` creates publication-quality Manhattan plots from GWAS association results, displaying significance ($5\times 10^{-8}$) and suggestive ($1\times 10^{-5}$) threshold lines, alternating chromosome colors, and annotating top candidate SNPs.
+`manhattan_plot.py` creates publication-quality Manhattan plots from GWAS association results, displaying significance ($5\times 10^{-8}$) and suggestive ($1\times 10^{-5}$) threshold lines, qualitative chromosome color palettes, and annotating top candidate SNPs.
+
+Supports dual rendering backends unified under HoloViews:
+- **Static Publication Mode (`HoloViews` + `matplotlib`)**: outputs high-DPI `.png` or vector `.pdf` figures with automated peak labels and publication layout.
+- **Interactive Web Mode (`HoloViews` + `bokeh`)**: outputs interactive `.html` files supporting pan, zoom, and mouse hover tooltips (`SNP`, `CHR`, `BP`, `P`) for all variants with dense, continuous background sampling.
 
 ```bash
+# 1. Publication static figure with qualitative palette (default: Set2; also supports Dark2, tab10, Paired, GAPIT)
 manhattan-plot \
   --input ./data/gwas_results.csv \
   --output ./data/Plot/manhattan_plot.png \
+  --palette Set2 \
   --title "Chinese Cabbage Yellow-Heart (CYS) GWAS"
+
+# 2. Interactive HTML visualization via HoloViews + Bokeh (inferred from .html or --backend bokeh)
+manhattan-plot \
+  --input ./data/gwas_results.csv \
+  --output ./data/Plot/manhattan_plot.html \
+  --palette Set2 \
+  --title "Interactive CYS GWAS Manhattan Plot"
 ```
 
 * **Input**: GWAS results CSV (validated via `GwasColumns` contract: `SNP`, `CHR`, `BP`, `P`)
-* **Output**: Manhattan plot image (`.png` / `.pdf`)
+* **Output**: Manhattan plot image (`.png` / `.pdf`) or interactive HTML (`.html`)
 
 ## 13. Candidate Gene Annotation
 
