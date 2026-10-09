@@ -108,14 +108,17 @@ def compute_cys(
     ratio: pd.Series, score: pd.Series, mode: str, alpha: float = DEFAULT_ALPHA
 ) -> pd.Series:
     """Combine the area ratio and the yellow score (multiply/additive/geometric)."""
-    r: "pd.Series[float]" = ratio.clip(0, 1).fillna(0.0)
-    s: "pd.Series[float]" = score.clip(0, 1).fillna(0.0)
+    if not 0 <= alpha <= 1:
+        raise ValueError("alpha must lie in [0, 1]")
+    # Undefined measurements must remain missing, rather than become white/zero-grade samples.
+    r: "pd.Series[float]" = ratio.clip(0, 1)
+    s: "pd.Series[float]" = score.clip(0, 1)
     match mode:
         case "additive":
             result = alpha * r + (1 - alpha) * s
         case "geometric":
             result = pd.Series(
-                np.sqrt(np.clip(r.to_numpy(), EPS, 1) * np.clip(s.to_numpy(), EPS, 1)),
+                np.sqrt(r.to_numpy() * s.to_numpy()),
                 index=r.index,
             )
         case "multiply":
@@ -150,8 +153,9 @@ def build_cys_table(
         out[f"{feat.split('_')[0]}_weight"] = round(w, 4)
 
     # Keep genotype passthrough for heritability.py (column 'QR' when present).
-    if "QR" in df.columns:
-        out["QR"] = df["QR"]
+    for column in ("QR", "accession_id", "plant_id", "batch_id"):
+        if column in df.columns:
+            out[column] = df[column]
     out["Yellow_score"] = score.round(6)
     modes = ["multiply", "additive", "geometric"] if mode == "all" else [mode]
     for m in modes:

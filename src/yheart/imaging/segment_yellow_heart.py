@@ -2,8 +2,8 @@
 
 Given cropped single-cabbage cross-section images plus their head-region
 polygon JSON (label ``Pan_center_contour_area``), this script segments the
-internal yellow-heart tissue using the Excess Red Index (ExR) and CIELAB b*
-thresholds, excluding the annotated short-stem area, and exports both the
+internal yellow-heart tissue using ExR, excluding the annotated short-stem
+area, and exports both the
 visualised contour image and the yellow-area polygon JSON.
 
 Usage
@@ -18,7 +18,9 @@ json  # Figshare full dataset
 """
 
 import argparse
+import csv
 import json
+import shutil
 import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -37,9 +39,9 @@ DEFAULT_JSON_OUTPUT_DIR = "./samples_images/results/Auto_segment_Yellow_heart/js
 
 
 TARGET_LABEL = "Pan_center_contour_area"
+STEM_LABEL = "Short_stem"
+ALGORITHM_VERSION = "2.1-exr-envelope"
 EXR_THRESHOLD = 0.15
-LAB_B_LOW_THRESHOLD = 20
-LAB_B_HIGH_THRESHOLD = 70
 EPS = 1e-6
 YELLOW_LABEL = "Yellow_area"
 VALID_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"}
@@ -90,20 +92,29 @@ def compute_lab_b_channel(img: np.ndarray):
     """CIELAB b* channel of a BGR image."""
     lab = cv2.cvtColor(img, cv2.COLOR_BGR2Lab)
     _, _, b_channel = cv2.split(lab)
-    return b_channel
+    # uint8 OpenCV Lab encodes b* as b* + 128. Cast before subtraction.
+    return b_channel.astype(np.float32) - 128.0
 
 
 def load_json_and_get_mask(json_path: str | Path, img_shape: tuple[int, ...]):
     """Rasterize the head-region polygon of an annotation JSON to a mask."""
     h, w = img_shape[:2]
     mask = np.zeros((h, w), dtype=np.uint8)
+    stem_mask = np.zeros_like(mask)
     data: AnnotationFile = json.loads(Path(json_path).read_text(encoding="utf-8"))
+    if (data.get("imageHeight"), data.get("imageWidth")) != (h, w):
+        raise ValueError(f"Annotation/image dimensions differ: {json_path}")
     for shape in data.get("shapes", []):
-        if shape.get("label") == TARGET_LABEL and shape.get("shape_type") == "polygon":
+        if (
+            shape.get("label") in (TARGET_LABEL, STEM_LABEL)
+            and shape.get("shape_type") == "polygon"
+        ):
             points = shape.get("points", [])
             poly = round_and_clip_polygon(points, w, h)
             if poly.shape[0] >= 3:
-                cv2.fillPoly(mask, [poly.reshape((-1, 1, 2))], 255)
+                target = mask if shape.get("label") == TARGET_LABEL else stem_mask
+                cv2.fillPoly(target, [poly.reshape((-1, 1, 2))], 255)
+    mask[stem_mask > 0] = 0
     return mask
 
 
@@ -111,22 +122,18 @@ def extract_yellow_contour(
     img: np.ndarray,
     mask: np.ndarray,
     exr_threshold: float = EXR_THRESHOLD,
-    lab_b_low: float = LAB_B_LOW_THRESHOLD,
-    lab_b_high: float = LAB_B_HIGH_THRESHOLD,
 ) -> tuple[np.ndarray | None, np.ndarray]:
-    """Segment yellow-heart tissue via ExR/b* thresholds; largest contour wins."""
+    """Use ExR to locate the core; retain the largest external contour."""
+    if not np.isfinite(exr_threshold):
+        raise ValueError("ExR threshold must be finite")
     exr = compute_exr_per_pixel(img)
-    lab_b = compute_lab_b_channel(img)
     masked_exr = np.where(mask == 255, exr, 0)
-    masked_lab_b = np.where(mask == 255, lab_b, 0)
-    exr_mask = (masked_exr > exr_threshold).astype(np.uint8) * 255
-    lab_b_mask = np.where(
-        (masked_lab_b >= lab_b_low) & (masked_lab_b <= lab_b_high), 255, 0
-    ).astype(np.uint8)
-    yellow_binary = cv2.bitwise_or(exr_mask, lab_b_mask)
+    yellow_binary = (masked_exr > exr_threshold).astype(np.uint8) * 255
+    yellow_binary[mask != 255] = 0
     kernel = np.ones((3, 3), np.uint8)
     yellow_binary = cv2.erode(yellow_binary, kernel, iterations=1)
     yellow_binary = cv2.dilate(yellow_binary, kernel, iterations=1)
+    yellow_binary[mask != 255] = 0
     contours, _ = cv2.findContours(yellow_binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     max_contour = max(contours, key=cv2.contourArea) if contours else None
     return max_contour, yellow_binary
@@ -153,7 +160,9 @@ def contour_to_json(
     json_data: AnnotationFile = json.loads(Path(orig_json_path).read_text(encoding="utf-8"))
     preserved_shapes: list[ShapeRecord] = []
     preserved_shapes.extend(
-        shape for shape in json_data.get("shapes", []) if shape.get("label") == TARGET_LABEL
+        shape
+        for shape in json_data.get("shapes", [])
+        if shape.get("label") in (TARGET_LABEL, STEM_LABEL)
     )
     json_data["shapes"] = preserved_shapes
     json_data["imagePath"] = Path(img_path).name
@@ -195,22 +204,68 @@ def process_single_file(
     output_img_path: str | Path,
     output_json_path: str | Path,
     exr_threshold: float = EXR_THRESHOLD,
-    lab_b_low: float = LAB_B_LOW_THRESHOLD,
-    lab_b_high: float = LAB_B_HIGH_THRESHOLD,
+    remove_gaps: bool = False,
 ):
     """Segment one image/JSON pair end to end."""
-    img = cv2.imread(str(img_path))
+    img = cv2.imdecode(np.fromfile(img_path, dtype=np.uint8), cv2.IMREAD_COLOR)
     if img is None:
-        print(f"Error loading image: {img_path}")
-        return
+        return {"filename": Path(img_path).name, "status": "unreadable_image"}
     mask = load_json_and_get_mask(json_path, img.shape)
-    if np.sum(mask) == 0:
-        visualize_contour_and_save(img, None, output_img_path)
-        save_yellow_area_json(None, json_path, img_path, img.shape, output_json_path)
-        return
-    contour, _ = extract_yellow_contour(img, mask, exr_threshold, lab_b_low, lab_b_high)
-    visualize_contour_and_save(img, contour, output_img_path)
-    save_yellow_area_json(contour, json_path, img_path, img.shape, output_json_path)
+    contour, pixels = extract_yellow_contour(img, mask, exr_threshold)
+    envelope = np.zeros_like(mask)
+    if contour is not None:
+        cv2.fillPoly(envelope, [contour], 255)
+    envelope[mask == 0] = 0
+    status = "ok" if envelope.any() else "no_yellow_detected"
+    if not mask.any():
+        status = "no_valid_head"
+    # Gap removal is an optional sensitivity analysis, not a new default phenotype.
+    regions = {"envelope": envelope, "pixels": pixels, "valid_head": mask}
+    if remove_gaps:
+        lightness = cv2.cvtColor(img.astype(np.float32) / 255.0, cv2.COLOR_BGR2Lab)[:, :, 0]
+        radius = max(2, round(8 * max(img.shape[:2]) / 1024))
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * radius + 1,) * 2)
+        deficit = cv2.morphologyEx(lightness, cv2.MORPH_BLACKHAT, kernel)
+        gaps = (envelope > 0) & (lightness < 50) & (deficit > 15)
+        tissue = envelope.copy()
+        tissue[gaps] = 0
+        regions["tissue"] = tissue
+    out = Path(output_json_path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    paths: dict[str, str] = {}
+    for name, region in regions.items():
+        relative = Path("masks") / f"{out.stem}_{name}.png"
+        (out.parent / relative).parent.mkdir(parents=True, exist_ok=True)
+        if not imwrite_unicode(out.parent / relative, region):
+            raise OSError(f"Failed to write mask: {relative}")
+        paths[name] = relative.as_posix()
+    annotation = contour_to_json(contour, json_path, img_path, img.shape)
+    annotation["region_masks"] = paths
+    annotation["yellow_mask_path"] = paths["envelope"]
+    annotation["valid_head_mask_path"] = paths["valid_head"]
+    annotation["segmentation"] = {
+        "algorithm_version": ALGORITHM_VERSION,
+        "color_rule": "exr",
+        "status": status,
+        "exr_threshold": exr_threshold,
+        "region_definition": "largest external contour, filled, clipped to head minus short stem",
+        "gap_removal": remove_gaps,
+        "gap_max_L": 50,
+        "gap_min_blackhat": 15,
+        "gap_radius_at_1024": 8,
+        "opencv_version": cv2.__version__,
+    }
+    out.write_text(json.dumps(annotation, ensure_ascii=False, indent=2), encoding="utf-8")
+    image_copy = out.parent / Path(img_path).name
+    if image_copy.resolve() != Path(img_path).resolve():
+        shutil.copyfile(img_path, image_copy)
+    visualize_contour_and_save(img.copy(), contour, output_img_path)
+    return {
+        "filename": Path(img_path).name,
+        "status": status,
+        "valid_head_px": int((mask > 0).sum()),
+        "yellow_px": int((envelope > 0).sum()),
+    }
 
 
 def batch_process(
@@ -218,27 +273,55 @@ def batch_process(
     output_dir: str | Path = DEFAULT_OUTPUT_DIR,
     json_output_dir: str | Path = DEFAULT_JSON_OUTPUT_DIR,
     exr_threshold: float = EXR_THRESHOLD,
-    lab_b_low: float = LAB_B_LOW_THRESHOLD,
-    lab_b_high: float = LAB_B_HIGH_THRESHOLD,
+    remove_gaps: bool = False,
 ):
     """Segment every annotated image in a folder."""
     input_path = Path(input_dir)
-    img_files = [f for f in input_path.iterdir() if f.suffix.lower() in VALID_EXTS]
+    destination = Path(json_output_dir)
+    if list(destination.glob("*.json")) or (destination / "segmentation_status.csv").exists():
+        raise ValueError("Use a fresh JSON output directory to avoid mixing algorithm versions")
+    img_files = sorted(f for f in input_path.iterdir() if f.suffix.lower() in VALID_EXTS)
+    records = []
     for img_file in img_files:
         json_file = input_path / f"{img_file.stem}.json"
         if not json_file.exists():
+            records.append({"filename": img_file.name, "status": "missing_annotation"})
             continue
         output_img_file = Path(output_dir) / img_file.name
         output_json_file = Path(json_output_dir) / f"{img_file.stem}.json"
-        process_single_file(
-            img_file,
-            json_file,
-            output_img_file,
-            output_json_file,
-            exr_threshold,
-            lab_b_low,
-            lab_b_high,
+        try:
+            records.append(
+                process_single_file(
+                    img_file,
+                    json_file,
+                    output_img_file,
+                    output_json_file,
+                    exr_threshold,
+                    remove_gaps,
+                )
+            )
+        except (ValueError, OSError, KeyError, cv2.error) as exc:
+            records.append({
+                "filename": img_file.name,
+                "status": "processing_error",
+                "error": str(exc),
+            })
+    report = Path(json_output_dir) / "segmentation_status.csv"
+    report.parent.mkdir(parents=True, exist_ok=True)
+    with report.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "filename",
+                "status",
+                "valid_head_px",
+                "yellow_px",
+                "error",
+            ],
         )
+        writer.writeheader()
+        writer.writerows(records)
+    return records
 
 
 @dataclass(frozen=True, slots=True)
@@ -249,8 +332,7 @@ class SegmentYellowHeartArgs:
     output: str
     json_output: str
     exr_threshold: float
-    lab_b_low: float
-    lab_b_high: float
+    remove_gaps: bool
 
 
 def parse_args(argv: Sequence[str] | None = None) -> SegmentYellowHeartArgs:
@@ -278,16 +360,9 @@ def parse_args(argv: Sequence[str] | None = None) -> SegmentYellowHeartArgs:
         help="Excess Red Index threshold (default: 0.15).",
     )
     p.add_argument(
-        "--lab-b-low",
-        type=float,
-        default=LAB_B_LOW_THRESHOLD,
-        help="CIELAB b* low threshold (default: 20).",
-    )
-    p.add_argument(
-        "--lab-b-high",
-        type=float,
-        default=LAB_B_HIGH_THRESHOLD,
-        help="CIELAB b* high threshold (default: 70).",
+        "--remove-gaps",
+        action="store_true",
+        help="Also save exploratory tissue mask excluding dark-gap candidates.",
     )
     return cast(SegmentYellowHeartArgs, p.parse_args(argv))
 
@@ -296,15 +371,18 @@ def main(argv: Sequence[str] | None = None):
     args = parse_args(argv)
     Path(args.output).mkdir(parents=True, exist_ok=True)
     Path(args.json_output).mkdir(parents=True, exist_ok=True)
-    batch_process(
+    records = batch_process(
         args.input,
         args.output,
         args.json_output,
         args.exr_threshold,
-        args.lab_b_low,
-        args.lab_b_high,
+        args.remove_gaps,
     )
-    print("Yellow-heart region segmentation complete.")
+    counts: dict[str, int] = {}
+    for record in records:
+        status = str(record["status"])
+        counts[status] = counts.get(status, 0) + 1
+    print(f"Segmentation finished: {len(records)} input images; statuses={counts}")
 
 
 if __name__ == "__main__":

@@ -30,6 +30,7 @@ import numpy as np
 import pandas as pd
 
 from yheart._typing import AnnotationFile
+from yheart.imaging.masks import read_mask
 
 # Default paths for Demo dataset
 DEFAULT_INPUT_FOLDER = "./samples_images/results/Auto_segment_Yellow_heart/json/"
@@ -99,7 +100,7 @@ def compute_ExR_mean(R: np.ndarray, G: np.ndarray, B: np.ndarray):
 
 
 def process_image_pair(
-    image_path: str | Path, json_path: str | Path
+    image_path: str | Path, json_path: str | Path, region: str = "envelope"
 ) -> dict[str, str | int | float]:
     """Extract the area ratio and ten color traits for one image/JSON pair."""
     img = cv2.imdecode(np.fromfile(image_path, dtype=np.uint8), cv2.IMREAD_COLOR)
@@ -119,12 +120,53 @@ def process_image_pair(
             cv2.fillPoly(mask_yellow, [poly.reshape((-1, 1, 2))], 255)
         elif label == LABEL_PAN:
             cv2.fillPoly(mask_pan, [poly.reshape((-1, 1, 2))], 255)
+    regions = jd.get("region_masks", {})
+    yellow_path = regions.get(region)
+    if region == "envelope":
+        yellow_path = yellow_path or jd.get("yellow_mask_path")
+    elif not yellow_path:
+        raise ValueError(f"Region '{region}' not available in {json_path}")
+    if yellow_path:
+        mask_yellow = (
+            read_mask(Path(json_path).parent / yellow_path, img.shape).astype(np.uint8) * 255
+        )
+    if valid_path := jd.get("valid_head_mask_path"):
+        mask_pan = read_mask(Path(json_path).parent / valid_path, img.shape).astype(np.uint8) * 255
+    else:
+        for shape in jd.get("shapes", []):
+            if shape.get("label") == "Short_stem":
+                poly = round_and_clip_polygon(shape.get("points", []), w, h)
+                if len(poly) >= 3:
+                    cv2.fillPoly(mask_pan, [poly], 0)
+    mask_yellow[mask_pan == 0] = 0
     coords_yellow = np.where(mask_yellow == 255)
     yellow_pixel_count = len(coords_yellow[0])
     pan_pixel_count = int(np.sum(mask_pan == 255))
     yellow_ratio = yellow_pixel_count / pan_pixel_count if pan_pixel_count > 0 else 0.0
     if yellow_pixel_count == 0:
-        raise ValueError(f"No yellow region pixels detected in {Path(image_path).name}")
+        if pan_pixel_count == 0:
+            raise ValueError(f"No valid head region in {Path(image_path).name}")
+        return {
+            "filename": Path(image_path).name,
+            "Yellow_pixel_count": 0,
+            "Pan_pixel_count": pan_pixel_count,
+            "Yellow_Ratio": 0.0,
+            **{
+                name: float("nan")
+                for name in (
+                    "R_mean",
+                    "G_mean",
+                    "B_mean",
+                    "H_circular_mean_deg",
+                    "S_mean",
+                    "V_mean",
+                    "L_mean",
+                    "a_mean",
+                    "b_mean",
+                    "ExR_mean",
+                )
+            },
+        }
     roi_pixels = img[coords_yellow]
     B_raw = roi_pixels[:, 0].astype(np.float64)
     G_raw = roi_pixels[:, 1].astype(np.float64)
@@ -162,16 +204,27 @@ def main(argv: Sequence[str] | None = None):
     input_folder, output_xlsx = args.input, args.output
     input_p = Path(input_folder)
     rows: list[dict[str, str | int | float]] = []
+    audit: list[dict[str, str]] = []
     files = sorted([p for p in input_p.iterdir() if p.suffix.lower() in VALID_EXTS])
     for img_path in files:
         json_path = input_p / f"{img_path.stem}.json"
         if not json_path.exists():
+            audit.append({"filename": img_path.name, "status": "missing_annotation", "error": ""})
             continue
         try:
-            rec = process_image_pair(str(img_path), str(json_path))
+            rec = process_image_pair(str(img_path), str(json_path), args.region)
             rows.append(rec)
+            audit.append({
+                "filename": img_path.name,
+                "status": ("ok" if rec["Yellow_pixel_count"] else "no_yellow_detected"),
+                "error": "",
+            })
         except Exception as e:
             print(f"Error processing {img_path.name}: {e}")
+            audit.append({"filename": img_path.name, "status": "processing_error", "error": str(e)})
+    audit_path = Path(output_xlsx).with_suffix(".status.csv")
+    audit_path.parent.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(audit, columns=["filename", "status", "error"]).to_csv(audit_path, index=False)
     if rows:
         save_results_to_excel(rows, output_xlsx)
 
@@ -191,6 +244,7 @@ class ExtractColorFeaturesArgs:
 
     input: str
     output: str
+    region: str
 
 
 def parse_args(argv: Sequence[str] | None = None) -> ExtractColorFeaturesArgs:
@@ -202,6 +256,12 @@ def parse_args(argv: Sequence[str] | None = None) -> ExtractColorFeaturesArgs:
     )
     p.add_argument(
         "--output", default=DEFAULT_OUTPUT_XLSX, help="Output .xlsx path for color features."
+    )
+    p.add_argument(
+        "--region",
+        choices=["envelope", "pixels", "tissue"],
+        default="envelope",
+        help="Measured mask; tissue requires segmentation with --remove-gaps.",
     )
     return cast(ExtractColorFeaturesArgs, p.parse_args(argv))
 

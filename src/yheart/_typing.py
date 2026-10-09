@@ -38,3 +38,7 @@ class AnnotationFile(TypedDict):
     imageWidth: int
     imagePath: NotRequired[str]
     shapes: list[ShapeRecord]
+    yellow_mask_path: NotRequired[str]
+    valid_head_mask_path: NotRequired[str]
+    region_masks: NotRequired[dict[str, str]]
+    segmentation: NotRequired[dict[str, object]]

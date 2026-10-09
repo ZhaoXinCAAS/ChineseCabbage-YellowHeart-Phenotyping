@@ -40,11 +40,9 @@ def test_multiply_penalizes_small_deep_vs_additive(tmp_path: Path):
     assert bool(sm["flag_small_deep"])
     # geometric sits between multiply and additive
     assert sm["CYS"] <= sm["CYS_geometric"] <= sm["CYS_additive"]
-    # rank reversal is possible: additive favors deep color over large area
+    # Product and geometric scores preserve ordering; additive can differ.
     lg = tab.loc[tab["filename"] == "large_pale.jpg"].iloc[0]
-    assert (sm["CYS_additive"] > lg["CYS_additive"]) != (
-        sm["CYS"] > lg["CYS"]
-    ) or True  # documents the comparison, always passes structurally
+    assert (sm["CYS"] > lg["CYS"]) == (sm["CYS_geometric"] > lg["CYS_geometric"])
 
 
 def test_negative_direction_uses_complement(tmp_path: Path):
@@ -80,3 +78,12 @@ def test_mojibake_headers_fallback_by_position(tmp_path: Path):
     w = load_fisher_weights(str(p), top_k=2)
     assert set(w) == {"ExR_mean", "S_mean"}
     assert abs(sum(v[0] for v in w.values()) - 1.0) < 1e-9
+
+
+def test_missing_measurements_stay_missing_and_geometric_zero_is_exact():
+    ratio = pd.Series([0.0, float("nan"), 0.5])
+    score = pd.Series([0.8, 0.8, float("nan")])
+    for mode in ("multiply", "additive", "geometric"):
+        result = compute_cys(ratio, score, mode)
+        assert result.iloc[1:].isna().all()
+    assert compute_cys(ratio, score, "geometric").iloc[0] == 0

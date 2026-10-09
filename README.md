@@ -351,6 +351,108 @@ annotate-genes \
 
 ## Reproducibility
 
+### Revision validation workflow
+
+The revised segmentation retains the **whole yellow-heart envelope** as the
+primary region and explicitly excludes `Short_stem`. The color rule is
+**ExR only** (`ExR > 0.15`), retaining the core-localizing behavior of the
+historical sample results. This is an engineering baseline, not an established
+biological definition of yellow heart. Historical CYS tables and GMM thresholds
+must not be treated as validated for newly generated masks. The filled-envelope
+definition, treatment of veins and gaps, and ambiguous boundaries need agreement
+before independent annotation and accuracy evaluation.
+
+Always use a fresh output directory. Batch segmentation refuses directories
+containing previous annotation outputs or a status report, preventing stale
+predictions from being mixed into a new run. For example:
+
+```bash
+segment-yellow-heart --input samples_images/results/annotations_head_region \
+  --output results/revision_v21/visualization \
+  --json-output results/revision_v21/annotations --remove-gaps
+
+extract-color-features --input results/revision_v21/annotations \
+  --output results/revision_v21/features_envelope.xlsx
+
+extract-color-features --input results/revision_v21/annotations \
+  --region tissue --output results/revision_v21/features_tissue.xlsx
+```
+
+Each annotation preserves head and stem polygons, references lossless PNG
+masks, and records algorithm version, thresholds, region definition, OpenCV
+version and processing status. The masks are:
+
+| Mask | Definition |
+| --- | --- |
+| `valid_head` | Annotated head minus short stem; the area-ratio denominator |
+| `envelope` | Largest external yellow contour filled and clipped to valid head |
+| `pixels` | Components selected by the chosen color rule, opened and clipped to valid head |
+| `tissue` | Optional envelope minus dark-gap candidates; an exploratory comparison |
+
+`--remove-gaps` uses `L* < 50` and local black-hat deficit `> 15`, with an
+elliptical kernel radius of 8 pixels at image long side 1024, scaled with image
+size (minimum radius 2). These candidates can include tissue shadows and miss
+bright gaps. White veins are not excluded based on color. Gap removal is not
+enabled by default and requires manual validation before adoption.
+
+Feature extraction and segmentation evaluation read the referenced raster
+mask rather than refilling polygons, so exclusions and holes survive export.
+The illumination robustness script also resegments each perturbed image before
+extracting features and compares whole envelopes. It no longer measures color
+inside a reused baseline yellow mask. This remains a simulation of segmentation
+and feature stability, not an external accuracy test or a complete CYS/grade test.
+Original images are copied alongside output annotations; visualization images
+are kept separately. Legacy polygon-only files remain readable. Segmentation
+writes `segmentation_status.csv` for every input image, including missing
+annotations and processing failures. Extraction writes a companion
+`*.status.csv`. An empty detected yellow region has area zero and undefined
+color features (NaN); it is **not** automatically classified as biologically
+white. CYS preserves missing measurements rather than replacing them with zero.
+
+For independent evaluation, manually annotate the same biological definition
+(whole yellow-heart envelope including internal veins, excluding short stem).
+Use a separate ground-truth directory covering the complete evaluation sample
+set, including images with absent predictions:
+
+```bash
+evaluate-segmentation --pred-dir results/revision_v21/annotations \
+  --gt-dir annotations/manual_test --strata annotations/test_strata.csv \
+  --output-csv results/revision_v21/evaluation.csv \
+  --output-summary results/revision_v21/evaluation_summary.csv
+```
+
+Prediction/GT self-comparison and canvas-size mismatches are rejected. Missing
+prediction files count as failures even for empty GT. Predictions without GT
+are rejected rather than silently discarded. Difficulty strata must be assigned
+independently in a `filename,stratum` CSV (`simple`, `typical`, `hard`, `blurry`);
+otherwise rows are `unassigned`. Cause labels describe mask discrepancies and
+require human review; small regions do not establish biological causes. Reports
+include signed pixel-area error and relative area error (undefined for empty GT).
+
+Baseline comparison now requires accession IDs and uses the same
+`StratifiedGroupKFold` splits for LDA, logistic regression, RF and SVM. Scaling
+is fitted on training folds only. The source CYS weighting method is a
+univariate Fisher-score weighting, not this LDA classifier.
+
+```bash
+baseline-compare --features results/revision_v21/features_envelope.xlsx \
+  --labeled-root annotations/color_classes \
+  --sample-sheet annotations/sample_sheet.csv --group-col QR \
+  --output results/revision_v21/baseline_metrics.csv \
+  --confusion results/revision_v21/baseline_confusion.csv
+```
+
+Recover the image, accession and plant hierarchy from experimental records.
+Record `filename,QR,plant_id,cut_id,batch_id,harvest_time,imaging_time,stratum,review_cause`
+in the sample sheet. Fill in real
+IDs; do not infer biological replicates from filename numbering. The baseline
+join uses `filename` and `QR`; the other fields document the experimental design.
+With confirmed biological plant IDs, use `broad-heritability --level both
+--replicate-col plant_id` on a table retaining `QR` and `plant_id` to compare
+image-level and plant-aggregated estimates. CYS construction preserves these
+IDs when they are supplied in its input. No new heritability or external validity
+claim follows from these code changes alone.
+
 * The number of GMM components defaults to the BIC-optimal choice and is
   controlled by `--random-state` (default `42`) for reproducibility.
 * The Demo dataset under `./samples_images/results/` lets the downstream steps

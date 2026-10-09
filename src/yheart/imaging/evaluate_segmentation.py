@@ -1,9 +1,9 @@
 r"""Segmentation accuracy evaluation (Reviewer-1 Q1/Q8, Reviewer-2 Q4).
 
-Compares predicted `Yellow_area` polygons against manual ground-truth
-polygons (same file stems in two folders) and reports IoU / Dice per image,
-failure attribution (biology vs. algorithm), and error rates stratified by
-`simple / typical / hard / blurry` (R1-8).
+Compares predicted `Yellow_area` masks against independent ground-truth
+annotations (same file stems in two folders) and reports IoU / Dice per image,
+mask discrepancies requiring human review, and error rates stratified by
+independently assigned `simple / typical / hard / blurry` labels (R1-8).
 Ground-truth provenance (R2-4) is recorded explicitly: every row keeps
 `gt_source` (default `manual_mask`) so the paper can state whether the
 number came from hand-drawn masks, sensory grades, or physicochemical assays
@@ -13,8 +13,7 @@ Usage
 -----
 .. code-block:: bash
     uv run evaluate-segmentation --pred-dir ./pred_json --gt-dir ./gt_json  # demo
-    uv run evaluate-segmentation --pred-dir ./pred --gt-dir ./pred \\
-        --output-csv ./eval.csv  # smoke test: IoU should be 1.0
+    uv run evaluate-segmentation --pred-dir ./pred --gt-dir ./manual_gt
 """
 
 from __future__ import annotations
@@ -32,9 +31,9 @@ import numpy as np
 import pandas as pd
 
 from yheart._typing import AnnotationFile
+from yheart.imaging.masks import read_mask
 
 DEFAULT_PRED_DIR = "./samples_images/results/Auto_segment_Yellow_heart/json"
-DEFAULT_GT_DIR = "./samples_images/results/Auto_segment_Yellow_heart/json"
 FAILURE_IOU = 0.5
 TINY_PX = 1000
 
@@ -59,8 +58,9 @@ def mask_from_json(path: str | Path, label: str = "Yellow_area"):
     h = data.get("imageHeight", 0)
     w = data.get("imageWidth", 0)
     if h <= 0 or w <= 0:
-        # 2-D empty so callers can still index `.shape[1]` without a cast.
-        return np.zeros((0, 0), dtype=bool)
+        raise ValueError(f"Invalid image dimensions in {path}: {h} x {w}")
+    if label == "Yellow_area" and (raster := data.get("yellow_mask_path")):
+        return read_mask(Path(path).parent / raster, (h, w))
     mask = np.zeros((h, w), dtype=np.uint8)
     for shape in data.get("shapes", []):
         if shape.get("label") != label:
@@ -86,36 +86,28 @@ def iou_dice(pred: np.ndarray, gt: np.ndarray):
 
 
 def classify_cause(iou: float, pred_n: int, gt_n: int, failure_iou: float = FAILURE_IOU):
-    """Distinguish biological variation from algorithmic failure (R1-1)."""
+    """Describe mask discrepancies; causal attribution requires human review."""
     if pred_n == 0 and gt_n == 0:
         return "both-empty"
     if pred_n == 0:
-        return "miss-no-pred:algorithm" if gt_n >= TINY_PX else "miss-tiny-gt:biology?"
+        return "miss-no-pred:review-required"
     if gt_n == 0:
-        return "false-positive-empty-gt:algorithm"
+        return "false-positive-empty-gt:review-required"
     if iou >= failure_iou:
         return "ok"
-    if gt_n < TINY_PX:
-        return "tiny-gt-low-overlap:biology?"
     ratio = pred_n / max(gt_n, 1)
     if ratio < 0.5:
-        return "under-segment:algorithm"
+        return "under-segment:review-required"
     if ratio > 2.0:
-        return "over-segment:algorithm"
-    return "boundary-mismatch:algorithm-or-ambiguous"
+        return "over-segment:review-required"
+    return "boundary-mismatch:review-required"
 
 
 def auto_stratum(gt_n: int, pred_n: int, iou: float, override: str | None = None):
-    """Map to R1-8 strata; explicit mapping file wins over heuristics."""
+    """Only accept independently assigned strata, never derive them from IoU."""
     if override in STRATA:
         return override
-    if gt_n < TINY_PX:
-        return "blurry"
-    if iou >= 0.8:
-        return "simple"
-    if iou >= 0.5:
-        return "typical"
-    return "hard"
+    return "unassigned"
 
 
 def evaluate_dirs(
@@ -127,27 +119,40 @@ def evaluate_dirs(
     failure_iou: float = FAILURE_IOU,
     gt_source: str = "manual_mask",
 ):
-    """Score every predicted JSON against ground truth; per-image IoU/Dice table."""
+    """Use all GT samples, count absent predictions, reject coordinate drift."""
+    if Path(pred_dir).resolve() == Path(gt_dir).resolve():
+        raise ValueError("Prediction and ground-truth directories must be different")
+    if not Path(pred_dir).is_dir() or not Path(gt_dir).is_dir():
+        raise ValueError("Prediction and ground-truth directories must exist")
+    if not 0 <= failure_iou <= 1:
+        raise ValueError("failure_iou must lie in [0, 1]")
     strata_map: dict[str, str] = {}
-    if strata_csv and Path(strata_csv).is_file():
+    if strata_csv:
         sdf = pd.read_csv(strata_csv)
         cols = {c.lower(): c for c in sdf.columns}
         s_col = cols.get("stratum", cols.get("strata"))
-        if "filename" in cols and isinstance(s_col, str):
-            for _, r in sdf.iterrows():
-                strata_map[str(r[cols["filename"]]).strip()] = str(r[s_col]).strip()
+        if "filename" not in cols or not isinstance(s_col, str):
+            raise ValueError("Strata CSV requires filename,stratum columns")
+        for _, r in sdf.iterrows():
+            stem = Path(str(r[cols["filename"]]).strip()).stem
+            value = str(r[s_col]).strip()
+            if stem in strata_map or value not in STRATA:
+                raise ValueError(f"Duplicate sample or invalid stratum: {stem}: {value}")
+            strata_map[stem] = value
     pred_files = {p.stem: p for p in Path(pred_dir).glob("*.json")}
     gt_files = {p.stem: p for p in Path(gt_dir).glob("*.json")}
     rows: list[dict[str, object]] = []
-    for stem in sorted(set(pred_files) & set(gt_files)):
-        pred = mask_from_json(pred_files[stem], pred_label)
+    if extras := sorted(set(pred_files) - set(gt_files)):
+        raise ValueError(f"Predictions without ground truth: {extras[:10]}")
+    for stem in sorted(gt_files):
         gt = mask_from_json(gt_files[stem], gt_label)
+        missing = stem not in pred_files
+        pred = np.zeros_like(gt) if missing else mask_from_json(pred_files[stem], pred_label)
         if pred.shape != gt.shape:
-            # Dimension drift between exports: compare on overlap canvas.
-            h = min(pred.shape[0], gt.shape[0])
-            w = min(pred.shape[1], gt.shape[1])
-            pred, gt = pred[:h, :w], gt[:h, :w]
+            raise ValueError(f"Shape mismatch for {stem}: {pred.shape} vs {gt.shape}")
         iou, dice, inter, pred_n, gt_n = iou_dice(pred, gt)
+        if missing:
+            iou, dice = 0.0, 0.0
         fname = f"{stem}.json"
         rows.append({
             "filename": fname,
@@ -157,9 +162,14 @@ def evaluate_dirs(
             "inter_px": inter,
             "pred_px": pred_n,
             "gt_px": gt_n,
-            "failure": iou < failure_iou,
-            "cause": classify_cause(iou, pred_n, gt_n, failure_iou),
-            "stratum": auto_stratum(gt_n, pred_n, iou, strata_map.get(fname)),
+            "failure": missing or iou < failure_iou,
+            "cause": "missing-prediction-file"
+            if missing
+            else classify_cause(iou, pred_n, gt_n, failure_iou),
+            "prediction_missing": missing,
+            "area_error_px": pred_n - gt_n,
+            "relative_area_error": (pred_n - gt_n) / gt_n if gt_n else float("nan"),
+            "stratum": auto_stratum(gt_n, pred_n, iou, strata_map.get(stem)),
         })
     return pd.DataFrame(
         rows,
@@ -173,6 +183,9 @@ def evaluate_dirs(
             "gt_px",
             "failure",
             "cause",
+            "prediction_missing",
+            "area_error_px",
+            "relative_area_error",
             "stratum",
         ],
     )
@@ -224,7 +237,7 @@ class EvaluateSegmentationArgs:
 def parse_args(argv: Sequence[str] | None = None):
     p = argparse.ArgumentParser(description="Evaluate Yellow_area segmentation.")
     p.add_argument("--pred-dir", default=DEFAULT_PRED_DIR)
-    p.add_argument("--gt-dir", default=DEFAULT_GT_DIR)
+    p.add_argument("--gt-dir", required=True, help="Independent manual segmentation annotations.")
     p.add_argument("--pred-label", default="Yellow_area")
     p.add_argument("--gt-label", default="Yellow_area")
     p.add_argument(
@@ -252,8 +265,8 @@ def main(argv: Sequence[str] | None = None):
         args.gt_source,
     )
     if df.empty:
-        print("Warning: no common JSON stems found; nothing evaluated.")
-        sys.exit(0)
+        print("Error: no ground-truth JSON samples found.")
+        sys.exit(1)
     summary = summarize(df)
     Path(args.output_csv).parent.mkdir(parents=True, exist_ok=True)
     Path(args.output_summary).parent.mkdir(parents=True, exist_ok=True)
