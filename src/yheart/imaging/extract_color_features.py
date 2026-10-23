@@ -99,6 +99,94 @@ def compute_ExR_mean(R: np.ndarray, G: np.ndarray, B: np.ndarray):
     return mean_safe(ExR)
 
 
+COLOR_FEATURE_NAMES: tuple[str, ...] = (
+    "R_mean",
+    "G_mean",
+    "B_mean",
+    "H_circular_mean_deg",
+    "S_mean",
+    "V_mean",
+    "L_mean",
+    "a_mean",
+    "b_mean",
+    "ExR_mean",
+)
+
+
+def load_region_masks(
+    json_path: str | Path,
+    data: AnnotationFile,
+    image_shape: tuple[int, ...],
+    region: str = "envelope",
+) -> tuple[np.ndarray, np.ndarray]:
+    """Rasterize the yellow and valid-head masks as uint8 0/255 arrays.
+
+    The yellow region comes from the referenced raster mask when present (so
+    holes survive), otherwise from the ``Yellow_area`` polygon. The head region
+    uses ``valid_head_mask_path`` when present, otherwise the
+    ``Pan_center_contour_area`` polygon minus ``Short_stem``.
+    """
+    h, w = image_shape[:2]
+    mask_yellow = np.zeros((h, w), dtype=np.uint8)
+    mask_pan = np.zeros((h, w), dtype=np.uint8)
+    for shape in data.get("shapes", []):
+        label = shape.get("label")
+        poly = round_and_clip_polygon(shape.get("points", []), w, h)
+        if poly.shape[0] < 3:
+            continue
+        if label == LABEL_YELLOW:
+            cv2.fillPoly(mask_yellow, [poly.reshape((-1, 1, 2))], 255)
+        elif label == LABEL_PAN:
+            cv2.fillPoly(mask_pan, [poly.reshape((-1, 1, 2))], 255)
+    regions = data.get("region_masks", {})
+    yellow_path = regions.get(region)
+    if region == "envelope":
+        yellow_path = yellow_path or data.get("yellow_mask_path")
+    elif not yellow_path:
+        raise ValueError(f"Region '{region}' not available in {json_path}")
+    if yellow_path:
+        mask_yellow = (
+            read_mask(Path(json_path).parent / yellow_path, image_shape).astype(np.uint8) * 255
+        )
+    if valid_path := data.get("valid_head_mask_path"):
+        mask_pan = (
+            read_mask(Path(json_path).parent / valid_path, image_shape).astype(np.uint8) * 255
+        )
+    else:
+        for shape in data.get("shapes", []):
+            if shape.get("label") == "Short_stem":
+                poly = round_and_clip_polygon(shape.get("points", []), w, h)
+                if len(poly) >= 3:
+                    cv2.fillPoly(mask_pan, [poly], 0)
+    mask_yellow[mask_pan == 0] = 0
+    return mask_yellow, mask_pan
+
+
+def color_features_from_mask(img: np.ndarray, mask: np.ndarray) -> dict[str, float]:
+    """Compute the ten colour traits inside a mask; NaN when it is empty."""
+    coords = np.where(mask > 0)
+    if len(coords[0]) == 0:
+        return {name: float("nan") for name in COLOR_FEATURE_NAMES}
+    roi_pixels = img[coords]
+    B_raw = roi_pixels[:, 0].astype(np.float64)
+    G_raw = roi_pixels[:, 1].astype(np.float64)
+    R_raw = roi_pixels[:, 2].astype(np.float64)
+    hsv_roi = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)[coords]
+    lab_roi = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)[coords]
+    return {
+        "R_mean": mean_safe(R_raw),
+        "G_mean": mean_safe(G_raw),
+        "B_mean": mean_safe(B_raw),
+        "H_circular_mean_deg": circular_mean_degrees(hsv_roi[:, 0]),
+        "S_mean": mean_safe(hsv_roi[:, 1].astype(np.float64) / 255.0),
+        "V_mean": mean_safe(hsv_roi[:, 2].astype(np.float64) / 255.0),
+        "L_mean": mean_safe(lab_roi[:, 0].astype(np.float64) / 255.0 * 100.0),
+        "a_mean": mean_safe(lab_roi[:, 1].astype(np.float64) - 128.0),
+        "b_mean": mean_safe(lab_roi[:, 2].astype(np.float64) - 128.0),
+        "ExR_mean": compute_ExR_mean(R_raw, G_raw, B_raw),
+    }
+
+
 def process_image_pair(
     image_path: str | Path, json_path: str | Path, region: str = "envelope"
 ) -> dict[str, str | int | float]:
@@ -106,96 +194,19 @@ def process_image_pair(
     img = cv2.imdecode(np.fromfile(image_path, dtype=np.uint8), cv2.IMREAD_COLOR)
     if img is None:
         raise ValueError(f"Failed to load image: {image_path}")
-    h, w = img.shape[:2]
     jd: AnnotationFile = json.loads(Path(json_path).read_text(encoding="utf-8"))
-    mask_yellow = np.zeros((h, w), dtype=np.uint8)
-    mask_pan = np.zeros((h, w), dtype=np.uint8)
-    for shape in jd.get("shapes", []):
-        label = shape.get("label")
-        pts = shape.get("points", [])
-        poly = round_and_clip_polygon(pts, w, h)
-        if poly.shape[0] < 3:
-            continue
-        if label == LABEL_YELLOW:
-            cv2.fillPoly(mask_yellow, [poly.reshape((-1, 1, 2))], 255)
-        elif label == LABEL_PAN:
-            cv2.fillPoly(mask_pan, [poly.reshape((-1, 1, 2))], 255)
-    regions = jd.get("region_masks", {})
-    yellow_path = regions.get(region)
-    if region == "envelope":
-        yellow_path = yellow_path or jd.get("yellow_mask_path")
-    elif not yellow_path:
-        raise ValueError(f"Region '{region}' not available in {json_path}")
-    if yellow_path:
-        mask_yellow = (
-            read_mask(Path(json_path).parent / yellow_path, img.shape).astype(np.uint8) * 255
-        )
-    if valid_path := jd.get("valid_head_mask_path"):
-        mask_pan = read_mask(Path(json_path).parent / valid_path, img.shape).astype(np.uint8) * 255
-    else:
-        for shape in jd.get("shapes", []):
-            if shape.get("label") == "Short_stem":
-                poly = round_and_clip_polygon(shape.get("points", []), w, h)
-                if len(poly) >= 3:
-                    cv2.fillPoly(mask_pan, [poly], 0)
-    mask_yellow[mask_pan == 0] = 0
-    coords_yellow = np.where(mask_yellow == 255)
-    yellow_pixel_count = len(coords_yellow[0])
+    mask_yellow, mask_pan = load_region_masks(json_path, jd, img.shape, region)
+    yellow_pixel_count = int(np.sum(mask_yellow == 255))
     pan_pixel_count = int(np.sum(mask_pan == 255))
     yellow_ratio = yellow_pixel_count / pan_pixel_count if pan_pixel_count > 0 else 0.0
-    if yellow_pixel_count == 0:
-        if pan_pixel_count == 0:
-            raise ValueError(f"No valid head region in {Path(image_path).name}")
-        return {
-            "filename": Path(image_path).name,
-            "Yellow_pixel_count": 0,
-            "Pan_pixel_count": pan_pixel_count,
-            "Yellow_Ratio": 0.0,
-            **{
-                name: float("nan")
-                for name in (
-                    "R_mean",
-                    "G_mean",
-                    "B_mean",
-                    "H_circular_mean_deg",
-                    "S_mean",
-                    "V_mean",
-                    "L_mean",
-                    "a_mean",
-                    "b_mean",
-                    "ExR_mean",
-                )
-            },
-        }
-    roi_pixels = img[coords_yellow]
-    B_raw = roi_pixels[:, 0].astype(np.float64)
-    G_raw = roi_pixels[:, 1].astype(np.float64)
-    R_raw = roi_pixels[:, 2].astype(np.float64)
-    R_mean, G_mean, B_mean = mean_safe(R_raw), mean_safe(G_raw), mean_safe(B_raw)
-    ExR_mean = compute_ExR_mean(R_raw, G_raw, B_raw)
-    hsv_roi = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)[coords_yellow]
-    lab_roi = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)[coords_yellow]
-    H_circular_mean_deg = circular_mean_degrees(hsv_roi[:, 0])
-    S_mean = mean_safe(hsv_roi[:, 1].astype(np.float64) / 255.0)
-    V_mean = mean_safe(hsv_roi[:, 2].astype(np.float64) / 255.0)
-    L_mean = mean_safe(lab_roi[:, 0].astype(np.float64) / 255.0 * 100.0)
-    a_mean = mean_safe(lab_roi[:, 1].astype(np.float64) - 128.0)
-    b_mean = mean_safe(lab_roi[:, 2].astype(np.float64) - 128.0)
+    if yellow_pixel_count == 0 and pan_pixel_count == 0:
+        raise ValueError(f"No valid head region in {Path(image_path).name}")
     return {
         "filename": Path(image_path).name,
         "Yellow_pixel_count": yellow_pixel_count,
         "Pan_pixel_count": pan_pixel_count,
         "Yellow_Ratio": yellow_ratio,
-        "R_mean": R_mean,
-        "G_mean": G_mean,
-        "B_mean": B_mean,
-        "H_circular_mean_deg": H_circular_mean_deg,
-        "S_mean": S_mean,
-        "V_mean": V_mean,
-        "L_mean": L_mean,
-        "a_mean": a_mean,
-        "b_mean": b_mean,
-        "ExR_mean": ExR_mean,
+        **color_features_from_mask(img, mask_yellow),
     }
 
 
