@@ -138,7 +138,7 @@ are used for subsequent phenotypic feature and color analysis.
 * **Input**: './samples_images/results/annotations_head_region/' (Demo) | './data/Annotations_head_region/' (Full Dataset)
 * **Output**: './samples_images/results/annotations_head_region/' (Demo) | './data/Annotations_head_region/' (Full Dataset)
 
-## 6. Automated Yellow-Heart Region Extraction
+## 4. Automated Yellow-Heart Region Extraction
 
 `segment_yellow_heart.py` extracts the internal yellow-heart
 tissue within the annotated leaf-heading region (`Pan_center_contour_area`),
@@ -390,9 +390,14 @@ cys-model-compare \
 
 `evaluate_segmentation.py` compares predicted `Yellow_area` masks against
 independent manual ground truth, reporting IoU, Dice, mask discrepancies, and
-failure rates. With `--gt-subdirs` the GT tree is read recursively and the
-immediate subfolder name becomes the `grade` column, which reproduces the
-per-phenotype-tier benchmark table (Grade 2–5 plus `ALL`).
+failure rates. Three grade modes reproduce the per-phenotype-tier benchmark
+table (Grade 2–5 plus `ALL`):
+
+| Mode | Layout | `grade` column |
+| --- | --- | --- |
+| `--gt-subdirs` | graded GT tree (`gt/Grade_2/*.json`), flat predictions | GT folder |
+| `--grade-from pred` | graded prediction tree (`pred/Grade_2/*.json`), flat GT — the revision benchmark layout | prediction folder |
+| no flag / `--grade-from none` | no grade information | empty |
 
 ```bash
 # Standard evaluation with difficulty strata
@@ -401,17 +406,27 @@ evaluate-segmentation --pred-dir ./data/Auto_segment \
   --output-csv ./results/evaluation.csv \
   --output-summary ./results/evaluation_summary.csv
 
-# Grade-folder GT layout + paper table
-evaluate-segmentation --pred-dir ./data/Auto_segment \
-  --gt-dir ./annotations/manual_gt_by_grade --gt-subdirs \
+# Revision layout: predictions already sit in grade folders, ground truth is flat
+evaluate-segmentation --pred-dir ./data/ByGrade_5_100 \
+  --gt-dir ./annotations/manual_gt --grade-from pred \
+  --grades Grade_2,Grade_3,Grade_4,Grade_5 \
   --output-csv ./results/evaluation.csv \
   --output-summary ./results/evaluation_summary.csv \
   --output-grade-summary ./results/evaluation_by_grade.csv \
   --excel ./results/segmentation_metrics_summary.xlsx
+
+# Second annotator: inter-annotator IoU/Dice, the measurement ceiling
+evaluate-segmentation --pred-dir ./data/ByGrade_5_100 \
+  --gt-dir ./annotations/annotator_1 --gt2-dir ./annotations/annotator_2 \
+  --output-summary ./results/summary.csv \
+  --output-agreement ./results/agreement.csv
 ```
 
-* **GT layout for `--gt-subdirs`**: `manual_gt_by_grade/Grade_2/*.json`, `Grade_3/*.json`, ... with unique file stems across folders; predictions stay in one flat folder
-* **Output**: per-image CSV, stratum summary, per-grade summary (`grade, n, mean_iou, sd_iou, mean_dice, sd_dice, iou_formatted, dice_formatted, failure_rate`), and an optional Excel workbook with `Table_Summary` and `Per_Sample_Details`
+* **`--grades`**: keeps only the named folders (`Grade_2,Grade_3,...`); a requested grade with no samples raises instead of silently producing a short row.
+* **`--gt2-dir` / `--gt2-label`**: compares two independent annotation sets on their shared stems and writes `<output-agreement>.csv` (summary with `mean ± SD` and `share_iou_ge_0.5`) plus `<output-agreement>_samples.csv`.
+* **Output**: per-image CSV, stratum summary, per-grade summary (`grade, grade_label, n, mean_iou, sd_iou, mean_dice, sd_dice, iou_formatted, dice_formatted, failure_rate`), and an optional Excel workbook with `Table_Summary`, `Per_Sample_Details`, and — when `--gt2-dir` is given — `Annotator_Agreement` / `Annotator_Agreement_Samples`.
+* **SD convention**: population SD (`ddof=0`), matching the revision script's `np.std` output.
+* **Grade labels**: `Grade_2...Grade_5` map to the paper names (Light Yellow / Yellow / Deep Yellow / Extreme Yellow); any other folder keeps its raw name, so an unexpected grade is never mislabelled.
 
 ## 16. Annotation Overlay Visualization
 
@@ -509,6 +524,19 @@ pca-cluster --input ./data/roi_10_color_features_with_ratio.xlsx \
 * **Output**: Excel table and PNG/SVG scatter
 
 ## Reproducibility
+
+### Quality gates
+
+The same three checks run locally and in CI (`.github/workflows/ci.yml`):
+
+```bash
+uv run ruff check src tests   # lint, line length 100
+uv run pyrefly check          # type check, 0 errors expected
+uv run pytest -q              # full suite under tests/
+```
+
+CI installs the project with `uv sync --extra dev` on Python 3.13 and adds the
+OpenCV system libraries (`libgl1`, `libglib2.0-0`) needed by the Ubuntu runner.
 
 ### Revision validation workflow
 
