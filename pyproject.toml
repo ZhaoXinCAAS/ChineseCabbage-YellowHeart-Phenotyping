@@ -60,6 +60,8 @@ fisher-scores = "yheart.scoring.fisher_scores:main"
 gmm-cys = "yheart.scoring.gmm_grading:main"
 cys-compute = "yheart.scoring.cys_compute:main"
 evaluate-segmentation = "yheart.imaging.evaluate_segmentation:main"
+visualize-annotations = "yheart.imaging.visualize_annotations:main"
+sample-images = "yheart.imaging.sample_images:main"
 
 [build-system]
 requires = ["hatchling"]

@@ -197,12 +197,12 @@ extract-color-features \
 * **Input**: `./samples_images/results/Auto_segment_Yellow_heart/json/` (Demo) | `./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/` (Full Dataset)
 * **Output**: `./samples_images/results/roi_10_color_features_with_ratio.xlsx` (Demo) | `./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/roi_10_color_features_with_ratio.xlsx` (Full Dataset)
 
-## 7. Phenotypic Data Min-Max Normalization
+## 7. Phenotypic Data Normalization
 
-`normalize_minmax.py` performs Min-Max normalization on the extracted raw phenotypic
-trait dataset to scale all feature values (e.g., area ratio and color
-parameters) into the range of [0, 1], eliminating scale differences for
-downstream analysis.
+`normalize_minmax.py` scales the ten extracted colour traits with Min-Max
+(default) or Z-score standardization. Min-Max maps each feature to [0, 1];
+Z-score centres on the mean and scales to unit SD, matching the GWAS-ready
+tables from the revision scripts.
 
 ```bash
 # Demo
@@ -211,6 +211,11 @@ minmax-normalize
 minmax-normalize \
   --input ./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/roi_10_color_features_with_ratio.xlsx \
   --output ./data/normalized_data_1319.xlsx
+
+# Z-score variant
+minmax-normalize --method zscore \
+  --input ./data/roi_10_color_features_with_ratio.xlsx \
+  --output ./data/color_features_zscore.xlsx
 ```
 
 * **Input**: `./samples_images/results/roi_10_color_features_with_ratio.xlsx` (Demo) | `./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/roi_10_color_features_with_ratio.xlsx` (Full Dataset)
@@ -269,9 +274,13 @@ broad-heritability
 broad-heritability \
   --data ./data/CYS_1319.xlsx \
   --output ./data/Plot/
+
+# Cross-check with the one-way ANOVA moment estimator
+broad-heritability --data ./data/CYS_1319.xlsx --output ./data/Plot_ANOVA --method anova
 ```
 
 * **Input**: `./samples_images/results/CYS_1319.xlsx` (Demo) | `./data/CYS_1319.xlsx` (Full Dataset)
+* **Estimator**: REML LMM by default; `--method anova` uses the unbalanced-design one-way ANOVA estimator (`r_eff` replaces `n_h`) from the revision scripts. Both write `variance_components.csv` and `h2_model_spec.txt`.
 ## 11. Genome-Wide Association Study (GWAS) Interface
 
 `gwas.py` supports two execution engines to map the quantitative CYS trait against genotype data:
@@ -348,6 +357,156 @@ annotate-genes \
 
 * **Input**: GWAS results CSV and genomic annotation file
 * **Output**: Annotated CSV reporting nearest candidate genes, distance to gene boundaries, and all genes located within the flanking window
+
+## 14. CYS Formulation Comparison
+
+`cys_model_compare.py` rebuilds four candidate CYS formulations from
+`Yellow_Ratio` and `Yellow_score`, fits the same variance-component model to
+each one, and exports an Excel report. It answers whether the multiplicative
+form over-penalizes small but deeply yellow heads, and whether the choice of
+formula changes the accession ranking.
+
+| Model | Formula |
+| --- | --- |
+| `multiply` | `YS × YR` (paper default) |
+| `additive` | `0.5 × YS + 0.5 × YR` |
+| `geometric` | `√(YS × YR)` |
+| `harmonic` | `2 × YS × YR / (YS + YR)` |
+
+```bash
+# Full dataset (defaults)
+cys-model-compare
+# Explicit paths and a plant-level sensitivity check
+cys-model-compare \
+  --data ./data/CYS_1319.xlsx \
+  --output ./data/CYS_models_comparison.xlsx \
+  --level aggregate --replicate-col plant_id
+```
+
+* **Input**: table with `Yellow_Ratio`, `Yellow_score`, and the genotype column (`QR` by default)
+* **Output**: `CYS_models_comparison.xlsx` with `Model_Heritability_H2`, `Spearman_Correlation`, and `Per_Sample_CYS_Values` sheets
+
+## 15. Segmentation Accuracy and Grade Benchmark
+
+`evaluate_segmentation.py` compares predicted `Yellow_area` masks against
+independent manual ground truth, reporting IoU, Dice, mask discrepancies, and
+failure rates. With `--gt-subdirs` the GT tree is read recursively and the
+immediate subfolder name becomes the `grade` column, which reproduces the
+per-phenotype-tier benchmark table (Grade 2–5 plus `ALL`).
+
+```bash
+# Standard evaluation with difficulty strata
+evaluate-segmentation --pred-dir ./data/Auto_segment \
+  --gt-dir ./annotations/manual_gt --strata ./annotations/test_strata.csv \
+  --output-csv ./results/evaluation.csv \
+  --output-summary ./results/evaluation_summary.csv
+
+# Grade-folder GT layout + paper table
+evaluate-segmentation --pred-dir ./data/Auto_segment \
+  --gt-dir ./annotations/manual_gt_by_grade --gt-subdirs \
+  --output-csv ./results/evaluation.csv \
+  --output-summary ./results/evaluation_summary.csv \
+  --output-grade-summary ./results/evaluation_by_grade.csv \
+  --excel ./results/segmentation_metrics_summary.xlsx
+```
+
+* **GT layout for `--gt-subdirs`**: `manual_gt_by_grade/Grade_2/*.json`, `Grade_3/*.json`, ... with unique file stems across folders; predictions stay in one flat folder
+* **Output**: per-image CSV, stratum summary, per-grade summary (`grade, n, mean_iou, sd_iou, mean_dice, sd_dice, iou_formatted, dice_formatted, failure_rate`), and an optional Excel workbook with `Table_Summary` and `Per_Sample_Details`
+
+## 16. Annotation Overlay Visualization
+
+`visualize_annotations.py` renders every polygon in an image + JSON pair as a
+semi-transparent fill with a closed outline and label tag. It is useful for
+reviewing head and yellow-heart masks before extraction.
+
+```bash
+# Demo
+visualize-annotations
+# Full dataset, selected labels only
+visualize-annotations --input ./data/Auto_segment_Yellow_heart/json \
+  --output ./data/Annotation_visualization \
+  --labels Yellow_area,Short_stem --alpha 0.35
+```
+
+* **Input**: folder of images with same-stem JSON sidecars (add `--recursive` to walk grade subfolders)
+* **Output**: `<stem>_vis.<ext>` overlays; files without JSON sidecars are reported and skipped
+
+## 17. Stratified Image Subset Sampling
+
+`sample_images.py` copies up to N images from each class/grade subfolder into
+a flat folder with a group prefix and writes a manifest. With a fixed seed the
+same subset is reproduced, which is how the 30-per-grade illumination
+robustness set is assembled.
+
+```bash
+sample-images --input ./data/Graded_Images \
+  --output ./data/Robustness_Graded_Images_Dataset --per-folder 30 --seed 42
+```
+
+* **Input**: root folder of class/grade subfolders (optionally restricted with `--groups Grade_2,Grade_3`)
+* **Output**: copied images plus `sampling_manifest.csv` (`group, filename, source, output`)
+
+## 18. Nested-Ellipse Spatially Weighted Traits
+
+`ellipse_weighted_traits.py` fits one ellipse to the head contour plus two
+scaled copies (1.0, 0.75, 0.5) anchored at the bottom, top, or centre. For each
+ellipse it measures the overlap with the yellow region and the ten colour
+traits inside that overlap, then combines them across ellipses.
+
+| Column group | Meaning |
+| --- | --- |
+| `Ellipse_i_scale`, `Ellipse_i_ratio` | Scale factor and yellow inclusion ratio of ellipse *i* |
+| `Ellipse_i_<trait>` | Colour traits measured inside ellipse *i* ∩ yellow region |
+| `Weighted_<trait>` | `Σ ratio_i × trait_i` (raw spatial sum) |
+| `WeightedNorm_<trait>` | `Σ ratio_i × trait_i / Σ ratio_i` (ratio-weighted mean) |
+| `Total_yellow_ratio` | `Σ ratio_i`; overlapping ellipses can push this above 1 |
+
+```bash
+# Demo
+ellipse-weighted-traits
+# Full dataset
+ellipse-weighted-traits --input ./data/Auto_segment_Yellow_heart/json \
+  --output ./data/ellipse_weighted_features.xlsx \
+  --alignment bottom \
+  --visualization-dir ./data/ellipse_visualization
+```
+
+* **Input**: images with same-stem JSON containing `Pan_center_contour_area` (and `Yellow_area` or a referenced yellow mask)
+* **Output**: trait table, `<output>.status.csv`, and per-image ellipse overlays
+
+## 19. Fisher-Weighted Otsu Segmentation
+
+`segment_fisher_score.py` is an alternative to the fixed ExR threshold: it
+builds per-pixel maps for the ten canonical traits, normalizes each inside the
+annotated head, combines them with Fisher-score weights (negative-direction
+traits use `1 - x`), and applies Otsu within the head. The largest component is
+kept and morphologically cleaned.
+
+```bash
+fisher-scores   # produces the weights table used below
+fisher-segment --input ./data/annotations_head_region \
+  --output ./data/Fisher_score_segmentation \
+  --fisher ./data/fisher_weights_418.xlsx
+```
+
+* **Input**: cropped head images with `Pan_center_contour_area` JSON and a Fisher weight table (all ten features required)
+* **Output**: original image, `masks/*_yellow_mask.png`, `masks/*_head_mask.png`, annotation JSON with both mask paths, and `segmentation_status.csv`
+* **Note**: outputs feed directly into `extract-color-features`; validate the masks against independent annotations before using the traits in a paper table
+
+## 20. PCA/KMeans Color Clustering
+
+`pca_cluster.py` standardizes the ten colour traits, projects samples onto
+PC1/PC2, clusters them with KMeans, and writes the explained-variance scatter
+plot plus a table with `PC1`, `PC2`, and `Cluster`.
+
+```bash
+pca-cluster --input ./data/roi_10_color_features_with_ratio.xlsx \
+  --output-xlsx ./data/color_pca_kmeans.xlsx \
+  --output-plot ./data/color_pca_kmeans.png --clusters 3
+```
+
+* **Input**: table with the ten canonical colour features
+* **Output**: Excel table and PNG/SVG scatter
 
 ## Reproducibility
 
@@ -430,9 +589,11 @@ require human review; small regions do not establish biological causes. Reports
 include signed pixel-area error and relative area error (undefined for empty GT).
 
 Baseline comparison now requires accession IDs and uses the same
-`StratifiedGroupKFold` splits for LDA, logistic regression, RF and SVM. Scaling
-is fitted on training folds only. The source CYS weighting method is a
-univariate Fisher-score weighting, not this LDA classifier.
+`StratifiedGroupKFold` splits for LDA, logistic regression, RF, RBF-SVM and
+linear SVM. Scaling is fitted on training folds only; each model's top-4
+discriminative features (mean absolute coefficient or impurity importance)
+are written in the `top_features` column. The source CYS weighting method is
+a univariate Fisher-score weighting, not this LDA classifier.
 
 ```bash
 baseline-compare --features results/revision_v21/features_envelope.xlsx \
@@ -460,6 +621,37 @@ claim follows from these code changes alone.
   requires phenotype-label subfolders under `./samples_images/Fisher_score_data/`
   (or `--labeled-root`); on the Demo bundle without these folders the script
   exits cleanly with a diagnostic message.
+
+## Script migration map
+
+The standalone scripts under `E:\Phenotype_analysis` were consolidated into
+the package as follows.
+
+| Source script | Integrated as | Notes |
+| --- | --- | --- |
+| `1_revise_Iou_Dice_Yellow_heart.py` | `evaluate-segmentation --gt-subdirs` | Per-grade mean ± SD IoU/Dice, overall row, optional Excel table |
+| `2_CYS.py` | `cys-model-compare` | Four formulations including harmonic mean; LMM or ANOVA H²; Spearman matrix |
+| `20260617_CYS_fenbu.py` | `visualize-annotations` | Semi-transparent polygon overlays with label tags |
+| `5_FDA_SVM.py` | `baseline-compare` | Linear SVM and top-4 feature reporting added; accession-grouped CV replaces plain stratified CV |
+| `6_White_balance.py` | `color-calibrate` / `robustness-test` | Source file is empty; gray-world white balance already exists in `color_calibrate` |
+| `Fisher_scores.py` | `fisher-scores` | Already present; folder labels use the canonical names |
+| `H2.py` | `broad-heritability --method anova` | One-way ANOVA estimator; REML LMM remains the default |
+| `test.py` | `sample-images` | Deterministic stratified subset with a manifest |
+| `1A_YEQIU_Github/*` | existing commands | Older versions of segmentation, extraction, normalization, Fisher, GMM, and H² |
+| `Cabbage_color/cabbage_color_10_HSV_Lab.py` | `extract-color-features` | Duplicate colour extraction |
+| `Chinese_cabbage_Github_scripts/yellow_heart_segmentation.py` | `segment-yellow-heart` | Earlier ExR segmentation |
+| `Chinese_cabbage_Github_scripts/pca.py` | `pca-cluster` | PCA + KMeans on the ten colour traits |
+| `Yeqiu_tuoyuannihe/tuoyuan_*.py`, `Yellow_area_pan_area_ratio*.py`, `Pan_area_Yellow_area_ratio_fenbie_10_color.py` | `ellipse-weighted-traits` | Nested-ellipse spatial weighting, per-ellipse and normalized columns |
+| `Yeqiu_tuoyuannihe/yeqiu_yellow_10_json.py` | `fisher-segment` | Fisher-weighted score + Otsu, lossless mask output |
+| `Yeqiu_tuoyuannihe/Z-score.py` | `minmax-normalize --method zscore` | Z-score standardization |
+| `Yeqiu_tuoyuannihe/Yellow_area_RGB_HSV_Lab.py`, `Yellow_area_Gray.py` | `extract-color-features` | Duplicate extraction; gray statistics are outside the canonical ten traits |
+| `1_A_leaf_label_model/*`, `2_A_leaf_edge_qifu/*` | not integrated | Leaf area/petiole and leaf-tip ellipse analyses are outside the yellow-heart scope |
+| `yeqiu_rgb_hsv_lab_holoviews/hv_hist.py` | not integrated | Interactive Panel/HoloViews notebook view |
+| `manuscript.original.md`, `manuscript.revised.md` | not code | Manuscript text is kept outside the package |
+
+Legacy phenotype folders `yellow_low / yellow_medium / yellow_many` map to the
+canonical `Light_yellow / yellow / Deep_yellow`. Legacy ground-truth JSON files
+labelled `yellow_area` can be read with `--gt-label yellow_area`.
 
 ## Citation
 
