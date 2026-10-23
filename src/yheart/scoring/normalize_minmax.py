@@ -1,7 +1,11 @@
-"""Min-Max normalize extracted yellow-heart color traits.
+"""Normalize extracted yellow-heart color traits.
 
-Scales the ten color-space features into [0, 1] to eliminate scale differences
-for downstream grading / Fisher / GMM analyses.
+Scales the ten colour-space features for downstream grading / Fisher / GMM
+analyses. Two methods are available:
+
+* ``minmax`` (default): scale each trait to [0, 1];
+* ``zscore``: centre each trait on its mean and scale to unit SD, the
+  revision-script variant used for GWAS-ready tables.
 
 Usage
 -----
@@ -11,6 +15,7 @@ Usage
         --input ./data/Auto_segment_Yellow_heart/True_Yellow_heart/json/\
 roi_10_color_features_with_ratio.xlsx \\
         --output ./data/normalized_data_1319.xlsx  # Figshare full dataset
+    uv run minmax-normalize --method zscore --input ... --output ...
 """
 
 import argparse
@@ -21,7 +26,7 @@ from pathlib import Path
 from typing import cast
 
 import pandas as pd
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 # Default paths for Demo dataset
 DEFAULT_INPUT_EXCEL = "./samples_images/results/roi_10_color_features_with_ratio.xlsx"
@@ -42,8 +47,10 @@ COLOR_FEATURES = [
 ]
 
 
-def normalize_color_features(input_path: str, output_path: str):
-    """Min-Max scale the ten color traits into [0, 1]."""
+def normalize_color_features(input_path: str, output_path: str, method: str = "minmax"):
+    """Scale the ten colour traits with Min-Max or Z-score standardization."""
+    if method not in {"minmax", "zscore"}:
+        raise ValueError(f"Unknown normalization method: {method}")
     if not Path(input_path).exists():
         print(f"Error: Input file not found '{input_path}'")
         return
@@ -51,11 +58,12 @@ def normalize_color_features(input_path: str, output_path: str):
     if missing_cols := [col for col in COLOR_FEATURES if col not in df.columns]:
         print(f"Error: Missing specified columns: {missing_cols}")
         return
-    scaler = MinMaxScaler()
+    scaler = MinMaxScaler() if method == "minmax" else StandardScaler()
     df[COLOR_FEATURES] = scaler.fit_transform(df[COLOR_FEATURES])
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     df.to_excel(output_path, index=False)
-    print(f"Min-Max normalization complete. Output saved to: {output_path}")
+    label = "Min-Max" if method == "minmax" else "Z-score"
+    print(f"{label} normalization complete. Output saved to: {output_path}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,22 +72,29 @@ class NormalizeMinmaxArgs:
 
     input: str
     output: str
+    method: str
 
 
 def parse_args(argv: Sequence[str] | None = None) -> NormalizeMinmaxArgs:
-    p = argparse.ArgumentParser(description="Min-Max normalize yellow-heart color traits to [0,1].")
+    p = argparse.ArgumentParser(description="Normalize yellow-heart color traits.")
     p.add_argument(
         "--input", default=DEFAULT_INPUT_EXCEL, help="Input .xlsx of raw color features."
     )
     p.add_argument(
         "--output", default=DEFAULT_OUTPUT_EXCEL, help="Output .xlsx of normalized features."
     )
+    p.add_argument(
+        "--method",
+        choices=["minmax", "zscore"],
+        default="minmax",
+        help="minmax scales to [0,1]; zscore centres on mean and scales to unit SD.",
+    )
     return cast(NormalizeMinmaxArgs, p.parse_args(argv))
 
 
 def main(argv: Sequence[str] | None = None):
     args = parse_args(argv)
-    normalize_color_features(args.input, args.output)
+    normalize_color_features(args.input, args.output, args.method)
 
 
 if __name__ == "__main__":

@@ -8,6 +8,7 @@ use the complement ``1 - x`` so larger always means "more yellow"):
 * ``multiply`` (paper default): ``CYS = Yellow_Ratio * Yellow_score``
 * ``additive``: ``CYS = alpha * Yellow_Ratio + (1 - alpha) * Yellow_score``
 * ``geometric``: ``CYS = sqrt(Yellow_Ratio * Yellow_score)``
+* ``harmonic``: ``CYS = 2 * Yellow_Ratio * Yellow_score / (Yellow_Ratio + Yellow_score)``
 ``Yellow_score = sum_k w_k * t_k`` where ``w_k`` are the renormalized
 absolute Fisher weights of the top-k features and ``t_k`` the
 direction-aligned normalized traits.
@@ -51,37 +52,39 @@ def _pick_col(df: pd.DataFrame, candidates: Sequence[str], pos: int) -> str:
     return next((c for c in candidates if c in df.columns), df.columns[pos])
 
 
-def load_fisher_weights(path: str, top_k: int = DEFAULT_TOP_K) -> dict[str, tuple[float, int]]:
-    """Return `{feature: (renorm_abs_weight, sign)}` for top-k features.
+def load_fisher_weight_table(path: str) -> dict[str, tuple[float, int]]:
+    """Return ``{feature: (signed_weight, sign)}`` for every row.
 
     Robust to mojibake headers: falls back to column positions
-    `0=name, 1=score, 3=Final_Weight`.
+    ``0=name, 1=score, 3=Final_Weight``. Weights are not renormalized; callers
+    decide whether to keep all features or a top-k subset.
     """
     df = pd.read_excel(path)
     name_col = _pick_col(df, ["Feature_Name", "Feature", "feature"], 0)
     weight_col = _pick_col(df, ["Final_Weight", "Weight", "weight", "FinalWeight"], 3)
     direction_col = _pick_col(df, ["Response_Direction", "Direction", "direction"], 2)
-    names = df[name_col].astype(str).str.strip()
+    names = df[name_col].astype(str).str.strip().tolist()
 
-    # Prefer signed Final_Weight; fall back to direction string.
-    signs: list[int] = []
-    weights: list[float] = []
-    for _, row in df.iterrows():
-        w = cast(float, row[weight_col])
-        weights.append(w)
-        d = str(row[direction_col])
-        if "Nega" in d or "-" in d or "Negative" in d or "��" in d and w < 0:
-            signs.append(-1)
-        elif "Posi" in d or "+" in d or "Right" in d:
-            signs.append(1)
+    table: dict[str, tuple[float, int]] = {}
+    for position, (_, row) in enumerate(df.iterrows()):
+        weight = cast(float, row[weight_col])
+        direction = str(row[direction_col])
+        if "Nega" in direction or "-" in direction or "Negative" in direction:
+            sign = -1
+        elif "Posi" in direction or "+" in direction or "Right" in direction:
+            sign = 1
         else:
-            signs.append(1 if w >= 0 else -1)
-    order: np.ndarray = np.argsort([abs(w) for w in weights])[::-1][:top_k]
-    selected: list[tuple[str, float, int]] = [
-        (names.iloc[int(i)], weights[int(i)], signs[int(i)]) for i in order
-    ]
-    total = sum(abs(w) for _, w, _ in selected) or 1.0
-    return {n: (abs(w) / total, s) for n, w, s in selected}
+            sign = 1 if weight >= 0 else -1
+        table[str(names[position])] = (float(weight), sign)
+    return table
+
+
+def load_fisher_weights(path: str, top_k: int = DEFAULT_TOP_K) -> dict[str, tuple[float, int]]:
+    """Return ``{feature: (renorm_abs_weight, sign)}`` for top-k features."""
+    table = load_fisher_weight_table(path)
+    order = sorted(table, key=lambda name: abs(table[name][0]), reverse=True)[:top_k]
+    total = sum(abs(table[name][0]) for name in order) or 1.0
+    return {name: (abs(table[name][0]) / total, table[name][1]) for name in order}
 
 
 def aligned_traits(df: pd.DataFrame, weights: dict[str, tuple[float, int]]) -> pd.DataFrame:
@@ -123,6 +126,10 @@ def compute_cys(
             )
         case "multiply":
             result: pd.Series = r * s
+        case "harmonic":
+            denominator = r + s
+            # Both components zero means no yellow pigment, i.e. an exact 0, not 0/0.
+            result = (2.0 * r * s / denominator).mask(denominator == 0, 0.0)
         case _:
             raise ValueError(f"Unknown mode: {mode}")
     return result.rename("CYS")
@@ -157,7 +164,7 @@ def build_cys_table(
         if column in df.columns:
             out[column] = df[column]
     out["Yellow_score"] = score.round(6)
-    modes = ["multiply", "additive", "geometric"] if mode == "all" else [mode]
+    modes = ["multiply", "additive", "geometric", "harmonic"] if mode == "all" else [mode]
     for m in modes:
         col = (
             "CYS"
@@ -191,7 +198,7 @@ def parse_args(argv: Sequence[str] | None = None) -> CysComputeArgs:
     p.add_argument("--top-k", type=int, default=DEFAULT_TOP_K)
     p.add_argument(
         "--mode",
-        choices=["multiply", "additive", "geometric", "all"],
+        choices=["multiply", "additive", "geometric", "harmonic", "all"],
         default="all",
     )
     p.add_argument("--alpha", type=float, default=DEFAULT_ALPHA)

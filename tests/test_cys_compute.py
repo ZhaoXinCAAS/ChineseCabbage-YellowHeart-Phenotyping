@@ -1,5 +1,6 @@
 """Tests for CYS_compute (Reviewer-1 Q2 ablation)."""
 
+import numpy as np
 import pandas as pd
 from pathlib import Path
 
@@ -83,7 +84,16 @@ def test_mojibake_headers_fallback_by_position(tmp_path: Path):
 def test_missing_measurements_stay_missing_and_geometric_zero_is_exact():
     ratio = pd.Series([0.0, float("nan"), 0.5])
     score = pd.Series([0.8, 0.8, float("nan")])
-    for mode in ("multiply", "additive", "geometric"):
+    for mode in ("multiply", "additive", "geometric", "harmonic"):
         result = compute_cys(ratio, score, mode)
         assert result.iloc[1:].isna().all()
     assert compute_cys(ratio, score, "geometric").iloc[0] == 0
+    assert compute_cys(ratio, score, "harmonic").iloc[0] == 0
+
+
+def test_harmonic_mean_formula():
+    ratio = pd.Series([0.5, 0.2, 0.9])
+    score = pd.Series([0.5, 0.8, 0.1])
+    result = compute_cys(ratio, score, "harmonic")
+    expected = 2 * ratio * score / (ratio + score)
+    assert np.allclose(result.to_numpy(), expected.to_numpy())
