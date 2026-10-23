@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import pytest
 
 
@@ -12,6 +13,8 @@ from yheart.imaging.evaluate_segmentation import (
     classify_cause,
     evaluate_dirs,
     iou_dice,
+    main as evaluate_main,
+    summarize_by_grade,
 )
 
 
@@ -100,3 +103,65 @@ def test_predictions_without_gt_are_not_silently_dropped(tmp_path: Path):
     _json(pred / "extra.json", "Yellow_area", [])
     with pytest.raises(ValueError, match="without ground truth"):
         evaluate_dirs(str(pred), str(gt))
+
+
+def test_gt_subdirs_adds_grade_and_aggregates(tmp_path: Path):
+    pred, gt = tmp_path / "pred", tmp_path / "gt"
+    pred.mkdir()
+    (gt / "Grade_2").mkdir(parents=True)
+    (gt / "Grade_3").mkdir(parents=True)
+    box = [[2, 2], [2, 10], [10, 10], [10, 2]]
+    small = [[2, 2], [2, 4], [4, 4], [4, 2]]
+    _json(pred / "a.json", "Yellow_area", box)
+    _json(gt / "Grade_2" / "a.json", "Yellow_area", box)
+    _json(pred / "b.json", "Yellow_area", small)
+    _json(gt / "Grade_3" / "b.json", "Yellow_area", box)
+
+    df = evaluate_dirs(str(pred), str(gt), gt_subdirs=True)
+    assert dict(zip(df["filename"], df["grade"])) == {
+        "a.json": "Grade_2",
+        "b.json": "Grade_3",
+    }
+    summary = summarize_by_grade(df)
+    assert list(summary["grade"]) == ["Grade_2", "Grade_3", "ALL"]
+    assert summary.loc[summary["grade"] == "Grade_2", "mean_iou"].iloc[0] == 1.0
+    assert summary.loc[summary["grade"] == "Grade_3", "mean_iou"].iloc[0] < 0.5
+    assert summary.loc[summary["grade"] == "ALL", "n"].iloc[0] == 2
+
+
+def test_gt_subdirs_rejects_duplicate_stems(tmp_path: Path):
+    pred, gt = tmp_path / "pred", tmp_path / "gt"
+    pred.mkdir()
+    (gt / "Grade_2").mkdir(parents=True)
+    (gt / "Grade_3").mkdir(parents=True)
+    _json(pred / "a.json", "Yellow_area", [])
+    _json(gt / "Grade_2" / "a.json", "Yellow_area", [])
+    _json(gt / "Grade_3" / "a.json", "Yellow_area", [])
+    with pytest.raises(ValueError, match="Duplicate"):
+        evaluate_dirs(str(pred), str(gt), gt_subdirs=True)
+
+
+def test_cli_writes_grade_summary_and_excel(tmp_path: Path):
+    pred, gt = tmp_path / "pred", tmp_path / "gt"
+    pred.mkdir()
+    (gt / "Grade_2").mkdir(parents=True)
+    box = [[2, 2], [2, 10], [10, 10], [10, 2]]
+    _json(pred / "a.json", "Yellow_area", box)
+    _json(gt / "Grade_2" / "a.json", "Yellow_area", box)
+    summary_csv = tmp_path / "summary.csv"
+    grade_csv = tmp_path / "grades.csv"
+    excel = tmp_path / "report.xlsx"
+    evaluate_main([
+        "--pred-dir", str(pred),
+        "--gt-dir", str(gt),
+        "--gt-subdirs",
+        "--output-csv", str(tmp_path / "eval.csv"),
+        "--output-summary", str(summary_csv),
+        "--output-grade-summary", str(grade_csv),
+        "--excel", str(excel),
+    ])
+    assert grade_csv.exists() and excel.exists()
+    grades = pd.read_csv(grade_csv)
+    assert set(grades["grade"]) == {"Grade_2", "ALL"}
+    sheets = pd.read_excel(excel, sheet_name=None)
+    assert set(sheets) == {"Table_Summary", "Per_Sample_Details"}

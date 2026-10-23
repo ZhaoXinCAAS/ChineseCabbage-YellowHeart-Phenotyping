@@ -118,8 +118,15 @@ def evaluate_dirs(
     strata_csv: str | None = None,
     failure_iou: float = FAILURE_IOU,
     gt_source: str = "manual_mask",
+    gt_subdirs: bool = False,
 ):
-    """Use all GT samples, count absent predictions, reject coordinate drift."""
+    """Use all GT samples, count absent predictions, reject coordinate drift.
+
+    With ``gt_subdirs=True`` ground truth is collected recursively and each
+    row records the immediate subfolder as ``grade`` (e.g. ``Grade_2``); this
+    is the phenotype-tier benchmark layout used for the paper table. Sample
+    stems must then be unique across grade folders.
+    """
     if Path(pred_dir).resolve() == Path(gt_dir).resolve():
         raise ValueError("Prediction and ground-truth directories must be different")
     if not Path(pred_dir).is_dir() or not Path(gt_dir).is_dir():
@@ -140,7 +147,17 @@ def evaluate_dirs(
                 raise ValueError(f"Duplicate sample or invalid stratum: {stem}: {value}")
             strata_map[stem] = value
     pred_files = {p.stem: p for p in Path(pred_dir).glob("*.json")}
-    gt_files = {p.stem: p for p in Path(gt_dir).glob("*.json")}
+    if gt_subdirs:
+        gt_files: dict[str, Path] = {}
+        gt_root = Path(gt_dir)
+        for path in sorted(gt_root.rglob("*.json")):
+            if path.stem in gt_files:
+                raise ValueError(
+                    f"Duplicate ground-truth sample across grade folders: {path.stem}"
+                )
+            gt_files[path.stem] = path
+    else:
+        gt_files = {p.stem: p for p in Path(gt_dir).glob("*.json")}
     rows: list[dict[str, object]] = []
     if extras := sorted(set(pred_files) - set(gt_files)):
         raise ValueError(f"Predictions without ground truth: {extras[:10]}")
@@ -154,9 +171,14 @@ def evaluate_dirs(
         if missing:
             iou, dice = 0.0, 0.0
         fname = f"{stem}.json"
+        grade = ""
+        if gt_subdirs:
+            relative = gt_files[stem].parent.relative_to(Path(gt_dir))
+            grade = "" if str(relative) == "." else relative.as_posix()
         rows.append({
             "filename": fname,
             "gt_source": gt_source,
+            "grade": grade,
             "iou": round(iou, 4),
             "dice": round(dice, 4),
             "inter_px": inter,
@@ -176,6 +198,7 @@ def evaluate_dirs(
         columns=[
             "filename",
             "gt_source",
+            "grade",
             "iou",
             "dice",
             "inter_px",
@@ -219,6 +242,56 @@ def summarize(df: pd.DataFrame):
     return pd.concat([out, all_row], ignore_index=True)
 
 
+def _format_mean_sd(values: "pd.Series[float]") -> str:
+    """Paper-table stem: ``mean ± SD`` with population SD (ddof=0)."""
+    if values.empty:
+        return "N/A"
+    return f"{values.mean():.4f} ± {values.std(ddof=0):.4f}"
+
+
+def summarize_by_grade(df: pd.DataFrame) -> pd.DataFrame:
+    """Aggregate IoU/Dice by phenotype grade folder, plus an overall row.
+
+    Grades come from ``evaluate_dirs(..., gt_subdirs=True)``. Columns mirror
+    the revision benchmark table: sample count, mean/SD, and printable
+    ``mean ± SD`` strings alongside the numeric values.
+    """
+    if df.empty or "grade" not in df.columns:
+        return pd.DataFrame()
+    rows: list[dict[str, object]] = []
+    groups = [(str(grade), g) for grade, g in df.groupby("grade", sort=True) if grade]
+    if not groups:
+        groups = [("all", df)]
+    for grade, g in groups:
+        iou: "pd.Series[float]" = g["iou"]
+        dice: "pd.Series[float]" = g["dice"]
+        rows.append({
+            "grade": grade,
+            "n": len(g),
+            "mean_iou": round(iou.mean(), 4),
+            "sd_iou": round(iou.std(ddof=0), 4),
+            "mean_dice": round(dice.mean(), 4),
+            "sd_dice": round(dice.std(ddof=0), 4),
+            "iou_formatted": _format_mean_sd(iou),
+            "dice_formatted": _format_mean_sd(dice),
+            "failure_rate": round(float(g["failure"].mean()), 4),
+        })
+    all_iou: "pd.Series[float]" = df["iou"]
+    all_dice: "pd.Series[float]" = df["dice"]
+    rows.append({
+        "grade": "ALL",
+        "n": len(df),
+        "mean_iou": round(all_iou.mean(), 4),
+        "sd_iou": round(all_iou.std(ddof=0), 4),
+        "mean_dice": round(all_dice.mean(), 4),
+        "sd_dice": round(all_dice.std(ddof=0), 4),
+        "iou_formatted": _format_mean_sd(all_iou),
+        "dice_formatted": _format_mean_sd(all_dice),
+        "failure_rate": round(float(df["failure"].mean()), 4),
+    })
+    return pd.DataFrame(rows)
+
+
 @dataclass(frozen=True, slots=True)
 class EvaluateSegmentationArgs:
     """Parsed command-line arguments."""
@@ -232,6 +305,9 @@ class EvaluateSegmentationArgs:
     output_summary: str
     failure_iou: float
     gt_source: str
+    gt_subdirs: bool
+    output_grade_summary: str | None
+    excel: str | None
 
 
 def parse_args(argv: Sequence[str] | None = None):
@@ -247,6 +323,21 @@ def parse_args(argv: Sequence[str] | None = None):
     p.add_argument("--output-summary", default="./seg_eval_summary.csv")
     p.add_argument("--failure-iou", type=float, default=FAILURE_IOU)
     p.add_argument("--gt-source", default="manual_mask")
+    p.add_argument(
+        "--gt-subdirs",
+        action="store_true",
+        help="Read GT recursively and report the immediate folder as the phenotype grade.",
+    )
+    p.add_argument(
+        "--output-grade-summary",
+        default=None,
+        help="CSV for the per-grade table (default: <output-summary>_by_grade.csv).",
+    )
+    p.add_argument(
+        "--excel",
+        default=None,
+        help="Optional .xlsx workbook with summary and per-sample sheets.",
+    )
     return cast(EvaluateSegmentationArgs, p.parse_args(argv))
 
 
@@ -263,6 +354,7 @@ def main(argv: Sequence[str] | None = None):
         args.strata,
         args.failure_iou,
         args.gt_source,
+        args.gt_subdirs,
     )
     if df.empty:
         print("Error: no ground-truth JSON samples found.")
@@ -285,6 +377,27 @@ def main(argv: Sequence[str] | None = None):
     )
     print(summary.to_string(index=False))
     print(f"Saved: {args.output_csv}, {args.output_summary}")
+
+    grade_summary = summarize_by_grade(df) if args.gt_subdirs else pd.DataFrame()
+    if not grade_summary.empty:
+        grade_path = args.output_grade_summary or str(
+            Path(args.output_summary).with_name(
+                f"{Path(args.output_summary).stem}_by_grade.csv"
+            )
+        )
+        Path(grade_path).parent.mkdir(parents=True, exist_ok=True)
+        grade_summary.to_csv(grade_path, index=False)
+        print("\nPer-grade benchmark:")
+        print(grade_summary.to_string(index=False))
+        print(f"Saved: {grade_path}")
+
+    if args.excel:
+        Path(args.excel).parent.mkdir(parents=True, exist_ok=True)
+        table = grade_summary if not grade_summary.empty else summary
+        with pd.ExcelWriter(args.excel, engine="openpyxl") as writer:
+            table.to_excel(writer, sheet_name="Table_Summary", index=False)
+            df.to_excel(writer, sheet_name="Per_Sample_Details", index=False)
+        print(f"Saved: {args.excel}")
 
 
 if __name__ == "__main__":
