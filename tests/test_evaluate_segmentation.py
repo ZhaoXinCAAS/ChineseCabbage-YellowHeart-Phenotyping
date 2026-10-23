@@ -9,11 +9,15 @@ import pytest
 
 
 from yheart.imaging.evaluate_segmentation import (
+    GRADE_LABELS,
     auto_stratum,
     classify_cause,
+    evaluate_annotator_agreement,
     evaluate_dirs,
     iou_dice,
     main as evaluate_main,
+    parse_grades,
+    summarize_agreement,
     summarize_by_grade,
 )
 
@@ -165,3 +169,153 @@ def test_cli_writes_grade_summary_and_excel(tmp_path: Path):
     assert set(grades["grade"]) == {"Grade_2", "ALL"}
     sheets = pd.read_excel(excel, sheet_name=None)
     assert set(sheets) == {"Table_Summary", "Per_Sample_Details"}
+
+
+def _graded_pred_bundle(root: Path) -> tuple[Path, Path]:
+    """Prediction tree graded by folder + flat ground truth (revision layout)."""
+    pred = root / "pred"
+    gt = root / "gt"
+    for grade in ("Grade_1", "Grade_2", "Grade_3"):
+        (pred / grade).mkdir(parents=True)
+    gt.mkdir()
+    box = [[2, 2], [2, 10], [10, 10], [10, 2]]
+    small = [[2, 2], [2, 4], [4, 4], [4, 2]]
+    _json(gt / "white.json", "Yellow_area", box)
+    _json(gt / "light.json", "Yellow_area", box)
+    _json(gt / "yellow.json", "Yellow_area", box)
+    _json(pred / "Grade_1" / "white.json", "Yellow_area", box)
+    _json(pred / "Grade_2" / "light.json", "Yellow_area", box)
+    _json(pred / "Grade_3" / "yellow.json", "Yellow_area", small)
+    return pred, gt
+
+
+def test_grade_from_prediction_folders(tmp_path: Path):
+    pred, gt = _graded_pred_bundle(tmp_path)
+    df = evaluate_dirs(str(pred), str(gt), grade_from="pred")
+    assert dict(zip(df["filename"], df["grade"])) == {
+        "light.json": "Grade_2",
+        "white.json": "Grade_1",
+        "yellow.json": "Grade_3",
+    }
+
+
+def test_grade_from_pred_ignores_gt_samples_outside_the_benchmark(tmp_path: Path):
+    pred, gt = _graded_pred_bundle(tmp_path)
+    box = [[2, 2], [2, 10], [10, 10], [10, 2]]
+    _json(gt / "unused.json", "Yellow_area", box)
+    df = evaluate_dirs(str(pred), str(gt), grade_from="pred")
+    assert "unused.json" not in set(df["filename"])
+    assert len(df) == 3
+    # Without an explicit grade source the whole GT folder is evaluated and the
+    # unpaired sample counts as a missing prediction, keeping the completeness
+    # guarantee for R1-1.
+    full = evaluate_dirs(str(pred), str(gt))
+    assert len(full) == 4
+    unused = full.loc[full["filename"] == "unused.json"].iloc[0]
+    assert bool(unused["prediction_missing"]) is True
+    assert float(unused["iou"]) == 0.0
+
+
+def test_grades_filter_keeps_only_requested(tmp_path: Path):
+    pred, gt = _graded_pred_bundle(tmp_path)
+    df = evaluate_dirs(
+        str(pred), str(gt), grade_from="pred", grades=("Grade_2", "Grade_3")
+    )
+    assert set(df["grade"]) == {"Grade_2", "Grade_3"}
+    summary = summarize_by_grade(df)
+    assert list(summary["grade"]) == ["Grade_2", "Grade_3", "ALL"]
+    assert float(summary.loc[summary["grade"] == "ALL", "mean_iou"].iloc[0]) < 0.8
+
+
+def test_grades_filter_rejects_unknown_grade(tmp_path: Path):
+    pred, gt = _graded_pred_bundle(tmp_path)
+    with pytest.raises(ValueError, match="no samples"):
+        evaluate_dirs(str(pred), str(gt), grade_from="pred", grades=("Grade_9",))
+
+
+def test_grades_require_a_grade_source(tmp_path: Path):
+    pred, gt = _graded_pred_bundle(tmp_path)
+    with pytest.raises(ValueError, match="needs grade information"):
+        evaluate_dirs(str(pred), str(gt), grades=("Grade_2",))
+    with pytest.raises(ValueError, match="requires gt_subdirs"):
+        evaluate_dirs(str(pred), str(gt), grade_from="gt")
+
+
+def test_grade_labels_use_paper_names(tmp_path: Path):
+    pred, gt = _graded_pred_bundle(tmp_path)
+    df = evaluate_dirs(str(pred), str(gt), grade_from="pred", grades=("Grade_2",))
+    summary = summarize_by_grade(df)
+    label = summary.loc[summary["grade"] == "Grade_2", "grade_label"].iloc[0]
+    assert label == GRADE_LABELS["Grade_2"] == "Grade 2 (Light Yellow)"
+    assert summary.loc[summary["grade"] == "ALL", "n"].iloc[0] == 1
+
+
+def test_parse_grades_orders_and_deduplicates():
+    assert parse_grades("Grade_3, Grade_2,Grade_3") == ("Grade_3", "Grade_2")
+    assert parse_grades(None) == ()
+    with pytest.raises(ValueError, match="at least one"):
+        parse_grades(" , ")
+
+
+def test_annotator_agreement_and_summary(tmp_path: Path):
+    first, second = tmp_path / "ann1", tmp_path / "ann2"
+    first.mkdir()
+    second.mkdir()
+    box = [[2, 2], [2, 10], [10, 10], [10, 2]]
+    half = [[2, 2], [2, 10], [10, 10], [10, 2]]
+    half[2:] = [[6, 10], [6, 2]]
+    _json(first / "a.json", "Yellow_area", box)
+    _json(first / "b.json", "Yellow_area", box)
+    _json(second / "a.json", "Yellow_area", box)
+    _json(second / "b.json", "Yellow_area", half)
+    _json(second / "extra.json", "Yellow_area", box)
+
+    agreement = evaluate_annotator_agreement(str(first), str(second))
+    assert list(agreement["filename"]) == ["a.json", "b.json"]
+    assert agreement["iou"].iloc[0] == 1.0
+    assert agreement["iou"].iloc[1] < 1.0
+    summary = summarize_agreement(agreement)
+    assert summary["n"].iloc[0] == 2
+    assert summary["mean_iou"].iloc[0] < 1.0
+    assert "share_iou_ge_0.5" in summary.columns
+
+
+def test_annotator_agreement_rejects_disjoint_sets(tmp_path: Path):
+    first, second = tmp_path / "ann1", tmp_path / "ann2"
+    first.mkdir()
+    second.mkdir()
+    box = [[2, 2], [2, 10], [10, 10], [10, 2]]
+    _json(first / "a.json", "Yellow_area", box)
+    _json(second / "b.json", "Yellow_area", box)
+    with pytest.raises(ValueError, match="No matching sample stems"):
+        evaluate_annotator_agreement(str(first), str(second))
+    with pytest.raises(ValueError, match="different"):
+        evaluate_annotator_agreement(str(first), str(first))
+
+
+def test_cli_writes_agreement_report_and_sheet(tmp_path: Path):
+    pred, gt = _graded_pred_bundle(tmp_path)
+    second = tmp_path / "gt2"
+    second.mkdir()
+    box = [[2, 2], [2, 10], [10, 10], [10, 2]]
+    for name in ("white.json", "light.json", "yellow.json"):
+        _json(second / name, "Yellow_area", box)
+    summary_csv = tmp_path / "summary.csv"
+    excel = tmp_path / "report.xlsx"
+    evaluate_main([
+        "--pred-dir", str(pred),
+        "--gt-dir", str(gt),
+        "--grade-from", "pred",
+        "--grades", "Grade_2,Grade_3",
+        "--gt2-dir", str(second),
+        "--output-csv", str(tmp_path / "eval.csv"),
+        "--output-summary", str(summary_csv),
+        "--excel", str(excel),
+    ])
+    agreement = pd.read_csv(tmp_path / "summary_agreement.csv")
+    samples = pd.read_csv(tmp_path / "summary_agreement_samples.csv")
+    assert agreement["n"].iloc[0] == len(samples) == 3
+    sheets = pd.read_excel(excel, sheet_name=None)
+    assert "Annotator_Agreement" in sheets
+    grades = pd.read_csv(tmp_path / "summary_by_grade.csv")
+    assert set(grades["grade"]) == {"Grade_2", "Grade_3", "ALL"}

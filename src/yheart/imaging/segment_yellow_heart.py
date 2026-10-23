@@ -205,7 +205,7 @@ def process_single_file(
     output_json_path: str | Path,
     exr_threshold: float = EXR_THRESHOLD,
     remove_gaps: bool = False,
-):
+) -> "dict[str, object]":
     """Segment one image/JSON pair end to end."""
     img = cv2.imdecode(np.fromfile(img_path, dtype=np.uint8), cv2.IMREAD_COLOR)
     if img is None:
@@ -281,7 +281,7 @@ def batch_process(
     if list(destination.glob("*.json")) or (destination / "segmentation_status.csv").exists():
         raise ValueError("Use a fresh JSON output directory to avoid mixing algorithm versions")
     img_files = sorted(f for f in input_path.iterdir() if f.suffix.lower() in VALID_EXTS)
-    records = []
+    records: "list[dict[str, object]]" = []
     for img_file in img_files:
         json_file = input_path / f"{img_file.stem}.json"
         if not json_file.exists():

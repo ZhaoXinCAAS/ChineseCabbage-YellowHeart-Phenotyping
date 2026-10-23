@@ -14,6 +14,10 @@ Usage
 .. code-block:: bash
     uv run evaluate-segmentation --pred-dir ./pred_json --gt-dir ./gt_json  # demo
     uv run evaluate-segmentation --pred-dir ./pred --gt-dir ./manual_gt
+    uv run evaluate-segmentation --pred-dir ./ByGrade_5_100 --gt-dir ./annotations \\
+        --grade-from pred --grades Grade_2,Grade_3,Grade_4,Grade_5
+    uv run evaluate-segmentation --pred-dir ./pred --gt-dir ./annotator_1 \\
+        --gt2-dir ./annotator_2 --output-summary ./summary.csv
 """
 
 from __future__ import annotations
@@ -38,6 +42,28 @@ FAILURE_IOU = 0.5
 TINY_PX = 1000
 
 STRATA = ("simple", "typical", "hard", "blurry")
+
+#: Display names used by the paper's per-grade benchmark table. Grades absent
+#: from this map keep their folder name so an unexpected folder is never
+#: silently mislabelled.
+GRADE_LABELS: dict[str, str] = {
+    "Grade_2": "Grade 2 (Light Yellow)",
+    "Grade_3": "Grade 3 (Yellow)",
+    "Grade_4": "Grade 4 (Deep Yellow)",
+    "Grade_5": "Grade 5 (Extreme Yellow)",
+}
+
+GRADE_SOURCES = ("gt", "pred", "none")
+
+
+def parse_grades(value: str | None) -> tuple[str, ...]:
+    """Split ``--grades Grade_2,Grade_3`` into an ordered tuple of folder names."""
+    if not value:
+        return ()
+    grades = tuple(dict.fromkeys(part.strip() for part in value.split(",") if part.strip()))
+    if not grades:
+        raise ValueError("--grades must name at least one grade folder")
+    return grades
 
 
 def round_and_clip(points: Sequence[Sequence[float]], w: int, h: int):
@@ -119,13 +145,24 @@ def evaluate_dirs(
     failure_iou: float = FAILURE_IOU,
     gt_source: str = "manual_mask",
     gt_subdirs: bool = False,
+    grade_from: str | None = None,
+    grades: Sequence[str] | None = None,
 ):
     """Use all GT samples, count absent predictions, reject coordinate drift.
 
-    With ``gt_subdirs=True`` ground truth is collected recursively and each
-    row records the immediate subfolder as ``grade`` (e.g. ``Grade_2``); this
-    is the phenotype-tier benchmark layout used for the paper table. Sample
-    stems must then be unique across grade folders.
+    The ``grade`` column is filled from the immediate folder name of either
+    tree:
+
+    * ``grade_from="gt"`` (requires ``gt_subdirs=True``) — the graded
+      ground-truth layout ``gt/Grade_2/*.json``;
+    * ``grade_from="pred"`` — the graded prediction layout used by the
+      revision benchmark (``pred/Grade_2/*.json`` with flat ground truth);
+      the prediction tree is scanned recursively and defines the evaluated
+      set, so extra ground-truth samples outside it are ignored;
+    * ``grade_from="none"``/``None`` — no grade information.
+
+    ``grades`` keeps only the named folders; an unknown or empty grade name
+    raises instead of silently producing a short table.
     """
     if Path(pred_dir).resolve() == Path(gt_dir).resolve():
         raise ValueError("Prediction and ground-truth directories must be different")
@@ -133,6 +170,14 @@ def evaluate_dirs(
         raise ValueError("Prediction and ground-truth directories must exist")
     if not 0 <= failure_iou <= 1:
         raise ValueError("failure_iou must lie in [0, 1]")
+    source = grade_from or ("gt" if gt_subdirs else "none")
+    if source not in GRADE_SOURCES:
+        raise ValueError(f"grade_from must be one of {GRADE_SOURCES}, got {source!r}")
+    if source == "gt" and not gt_subdirs:
+        raise ValueError("grade_from='gt' requires gt_subdirs=True (a graded GT tree)")
+    allowed = tuple(grades or ())
+    if allowed and source == "none":
+        raise ValueError("--grades needs grade information: pass --gt-subdirs or --grade-from pred")
     strata_map: dict[str, str] = {}
     if strata_csv:
         sdf = pd.read_csv(strata_csv)
@@ -146,7 +191,17 @@ def evaluate_dirs(
             if stem in strata_map or value not in STRATA:
                 raise ValueError(f"Duplicate sample or invalid stratum: {stem}: {value}")
             strata_map[stem] = value
-    pred_files = {p.stem: p for p in Path(pred_dir).glob("*.json")}
+    pred_root = Path(pred_dir)
+    pred_grades: dict[str, str] = {}
+    if source == "pred":
+        pred_files: dict[str, Path] = {}
+        for path in sorted(pred_root.rglob("*.json")):
+            if path.stem in pred_files:
+                raise ValueError(f"Duplicate prediction sample across grade folders: {path.stem}")
+            pred_files[path.stem] = path
+            pred_grades[path.stem] = path.parent.name
+    else:
+        pred_files = {p.stem: p for p in pred_root.glob("*.json")}
     if gt_subdirs:
         gt_files: dict[str, Path] = {}
         gt_root = Path(gt_dir)
@@ -158,10 +213,21 @@ def evaluate_dirs(
             gt_files[path.stem] = path
     else:
         gt_files = {p.stem: p for p in Path(gt_dir).glob("*.json")}
+    if source == "pred":
+        # The graded prediction tree defines the evaluated set, so a shared GT
+        # folder holding samples outside the benchmark is not an error.
+        gt_files = {stem: path for stem, path in gt_files.items() if stem in pred_files}
     rows: list[dict[str, object]] = []
     if extras := sorted(set(pred_files) - set(gt_files)):
         raise ValueError(f"Predictions without ground truth: {extras[:10]}")
     for stem in sorted(gt_files):
+        grade = ""
+        if source == "gt":
+            grade = gt_files[stem].parent.name if gt_files[stem].parent != Path(gt_dir) else ""
+        elif source == "pred":
+            grade = pred_grades.get(stem, "")
+        if allowed and grade not in allowed:
+            continue
         gt = mask_from_json(gt_files[stem], gt_label)
         missing = stem not in pred_files
         pred = np.zeros_like(gt) if missing else mask_from_json(pred_files[stem], pred_label)
@@ -171,10 +237,6 @@ def evaluate_dirs(
         if missing:
             iou, dice = 0.0, 0.0
         fname = f"{stem}.json"
-        grade = ""
-        if gt_subdirs:
-            relative = gt_files[stem].parent.relative_to(Path(gt_dir))
-            grade = "" if str(relative) == "." else relative.as_posix()
         rows.append({
             "filename": fname,
             "gt_source": gt_source,
@@ -193,7 +255,7 @@ def evaluate_dirs(
             "relative_area_error": (pred_n - gt_n) / gt_n if gt_n else float("nan"),
             "stratum": auto_stratum(gt_n, pred_n, iou, strata_map.get(stem)),
         })
-    return pd.DataFrame(
+    table = pd.DataFrame(
         rows,
         columns=[
             "filename",
@@ -212,6 +274,11 @@ def evaluate_dirs(
             "stratum",
         ],
     )
+    if allowed:
+        seen = {str(value) for value in table["grade"]}
+        if unknown := [grade for grade in allowed if grade not in seen]:
+            raise ValueError(f"Requested grades have no samples: {unknown}; found {sorted(seen)}")
+    return table
 
 
 def summarize(df: pd.DataFrame):
@@ -252,9 +319,10 @@ def _format_mean_sd(values: "pd.Series[float]") -> str:
 def summarize_by_grade(df: pd.DataFrame) -> pd.DataFrame:
     """Aggregate IoU/Dice by phenotype grade folder, plus an overall row.
 
-    Grades come from ``evaluate_dirs(..., gt_subdirs=True)``. Columns mirror
-    the revision benchmark table: sample count, mean/SD, and printable
-    ``mean ± SD`` strings alongside the numeric values.
+    Grades come from the ``grade`` column (``--gt-subdirs`` or
+    ``--grade-from pred``). Columns mirror the revision benchmark table:
+    sample count, mean/SD, printable ``mean ± SD`` strings, and the display
+    label used in the paper table.
     """
     if df.empty or "grade" not in df.columns:
         return pd.DataFrame()
@@ -267,6 +335,7 @@ def summarize_by_grade(df: pd.DataFrame) -> pd.DataFrame:
         dice: "pd.Series[float]" = g["dice"]
         rows.append({
             "grade": grade,
+            "grade_label": GRADE_LABELS.get(grade, grade),
             "n": len(g),
             "mean_iou": round(iou.mean(), 4),
             "sd_iou": round(iou.std(ddof=0), 4),
@@ -280,6 +349,7 @@ def summarize_by_grade(df: pd.DataFrame) -> pd.DataFrame:
     all_dice: "pd.Series[float]" = df["dice"]
     rows.append({
         "grade": "ALL",
+        "grade_label": "Overall (all retained grades)",
         "n": len(df),
         "mean_iou": round(all_iou.mean(), 4),
         "sd_iou": round(all_iou.std(ddof=0), 4),
@@ -290,6 +360,65 @@ def summarize_by_grade(df: pd.DataFrame) -> pd.DataFrame:
         "failure_rate": round(float(df["failure"].mean()), 4),
     })
     return pd.DataFrame(rows)
+
+
+def evaluate_annotator_agreement(
+    gt1_dir: str,
+    gt2_dir: str,
+    label1: str = "Yellow_area",
+    label2: str = "Yellow_area",
+    failure_iou: float = FAILURE_IOU,
+) -> pd.DataFrame:
+    """Agreement between two independent annotations of the same samples (R1-1).
+
+    Returns one row per sample stem present in both trees. ``iou``/``dice``
+    are computed between the two human masks, i.e. the measurement ceiling
+    the algorithm is judged against.
+    """
+    if Path(gt1_dir).resolve() == Path(gt2_dir).resolve():
+        raise ValueError("The two annotation directories must be different")
+    first = {p.stem: p for p in Path(gt1_dir).glob("*.json")}
+    second = {p.stem: p for p in Path(gt2_dir).glob("*.json")}
+    shared = sorted(set(first) & set(second))
+    if not shared:
+        raise ValueError("No matching sample stems between the two annotation sets")
+    rows: list[dict[str, object]] = []
+    for stem in shared:
+        mask_a = mask_from_json(first[stem], label1)
+        mask_b = mask_from_json(second[stem], label2)
+        if mask_a.shape != mask_b.shape:
+            raise ValueError(f"Shape mismatch for {stem}: {mask_a.shape} vs {mask_b.shape}")
+        iou, dice, inter, a_px, b_px = iou_dice(mask_a, mask_b)
+        rows.append({
+            "filename": f"{stem}.json",
+            "iou": round(iou, 4),
+            "dice": round(dice, 4),
+            "inter_px": inter,
+            "annotator1_px": a_px,
+            "annotator2_px": b_px,
+            "area_error_px": b_px - a_px,
+            "relative_area_error": (b_px - a_px) / a_px if a_px else float("nan"),
+            "agreement_ok": iou >= failure_iou,
+        })
+    return pd.DataFrame(rows)
+
+
+def summarize_agreement(df: pd.DataFrame, failure_iou: float = FAILURE_IOU) -> pd.DataFrame:
+    """One-row summary of inter-annotator IoU/Dice with printable mean ± SD."""
+    if df.empty:
+        return pd.DataFrame()
+    iou: "pd.Series[float]" = df["iou"]
+    dice: "pd.Series[float]" = df["dice"]
+    return pd.DataFrame([{
+        "n": len(df),
+        "mean_iou": round(iou.mean(), 4),
+        "sd_iou": round(iou.std(ddof=0), 4),
+        "mean_dice": round(dice.mean(), 4),
+        "sd_dice": round(dice.std(ddof=0), 4),
+        "iou_formatted": _format_mean_sd(iou),
+        "dice_formatted": _format_mean_sd(dice),
+        f"share_iou_ge_{failure_iou:g}": round(float(df["agreement_ok"].mean()), 4),
+    }])
 
 
 @dataclass(frozen=True, slots=True)
@@ -308,6 +437,11 @@ class EvaluateSegmentationArgs:
     gt_subdirs: bool
     output_grade_summary: str | None
     excel: str | None
+    grade_from: str | None
+    grades: str | None
+    gt2_dir: str | None
+    gt2_label: str | None
+    output_agreement: str | None
 
 
 def parse_args(argv: Sequence[str] | None = None):
@@ -338,6 +472,33 @@ def parse_args(argv: Sequence[str] | None = None):
         default=None,
         help="Optional .xlsx workbook with summary and per-sample sheets.",
     )
+    p.add_argument(
+        "--grade-from",
+        choices=["gt", "pred", "none"],
+        default=None,
+        help="Where the grade label comes from: graded GT folders, graded prediction "
+        "folders (scanned recursively), or none. Defaults to gt with --gt-subdirs.",
+    )
+    p.add_argument(
+        "--grades",
+        default=None,
+        help="Comma-separated grade folders to keep, e.g. Grade_2,Grade_3,Grade_4,Grade_5.",
+    )
+    p.add_argument(
+        "--gt2-dir",
+        default=None,
+        help="Second independent annotation set; reports inter-annotator IoU/Dice.",
+    )
+    p.add_argument(
+        "--gt2-label",
+        default=None,
+        help="Label used by the second annotation set (default: same as --gt-label).",
+    )
+    p.add_argument(
+        "--output-agreement",
+        default=None,
+        help="CSV stem for the agreement report (default: <output-summary>_agreement).",
+    )
     return cast(EvaluateSegmentationArgs, p.parse_args(argv))
 
 
@@ -346,16 +507,24 @@ def main(argv: Sequence[str] | None = None):
     if not Path(args.pred_dir).is_dir() or not Path(args.gt_dir).is_dir():
         print(f"Error: pred-dir or gt-dir not found: {args.pred_dir}, {args.gt_dir}")
         sys.exit(1)
-    df = evaluate_dirs(
-        args.pred_dir,
-        args.gt_dir,
-        args.pred_label,
-        args.gt_label,
-        args.strata,
-        args.failure_iou,
-        args.gt_source,
-        args.gt_subdirs,
-    )
+    grade_source = args.grade_from or ("gt" if args.gt_subdirs else "none")
+    try:
+        grades = parse_grades(args.grades)
+        df = evaluate_dirs(
+            args.pred_dir,
+            args.gt_dir,
+            args.pred_label,
+            args.gt_label,
+            args.strata,
+            args.failure_iou,
+            args.gt_source,
+            args.gt_subdirs,
+            grade_source,
+            grades,
+        )
+    except ValueError as e:
+        print(f"Error: {e}")
+        sys.exit(1)
     if df.empty:
         print("Error: no ground-truth JSON samples found.")
         sys.exit(1)
@@ -376,9 +545,11 @@ def main(argv: Sequence[str] | None = None):
         f"failures(IoU<{args.failure_iou})={n_fail}"
     )
     print(summary.to_string(index=False))
+    if grades:
+        print(f"Grade filter: {', '.join(grades)} -> n={len(df)}")
     print(f"Saved: {args.output_csv}, {args.output_summary}")
 
-    grade_summary = summarize_by_grade(df) if args.gt_subdirs else pd.DataFrame()
+    grade_summary = summarize_by_grade(df) if grade_source != "none" else pd.DataFrame()
     if not grade_summary.empty:
         grade_path = args.output_grade_summary or str(
             Path(args.output_summary).with_name(
@@ -391,12 +562,47 @@ def main(argv: Sequence[str] | None = None):
         print(grade_summary.to_string(index=False))
         print(f"Saved: {grade_path}")
 
+    agreement_summary = pd.DataFrame()
+    agreement: pd.DataFrame | None = None
+    if args.gt2_dir:
+        try:
+            agreement = evaluate_annotator_agreement(
+                args.gt_dir,
+                args.gt2_dir,
+                args.gt_label,
+                args.gt2_label or args.gt_label,
+                args.failure_iou,
+            )
+        except ValueError as e:
+            print(f"Error: {e}")
+            sys.exit(1)
+        agreement_summary = summarize_agreement(agreement, args.failure_iou)
+        agreement_stem = args.output_agreement or str(
+            Path(args.output_summary).with_name(
+                f"{Path(args.output_summary).stem}_agreement"
+            )
+        )
+        agreement_samples_path = f"{agreement_stem}_samples.csv"
+        Path(agreement_stem).parent.mkdir(parents=True, exist_ok=True)
+        agreement_summary.to_csv(f"{agreement_stem}.csv", index=False)
+        agreement.to_csv(agreement_samples_path, index=False)
+        print("\nInter-annotator agreement:")
+        print(agreement_summary.to_string(index=False))
+        print(f"Saved: {agreement_stem}.csv, {agreement_samples_path}")
+
     if args.excel:
         Path(args.excel).parent.mkdir(parents=True, exist_ok=True)
         table = grade_summary if not grade_summary.empty else summary
         with pd.ExcelWriter(args.excel, engine="openpyxl") as writer:
             table.to_excel(writer, sheet_name="Table_Summary", index=False)
             df.to_excel(writer, sheet_name="Per_Sample_Details", index=False)
+            if not agreement_summary.empty and agreement is not None:
+                agreement_summary.to_excel(
+                    writer, sheet_name="Annotator_Agreement", index=False
+                )
+                agreement.to_excel(
+                    writer, sheet_name="Annotator_Agreement_Samples", index=False
+                )
         print(f"Saved: {args.excel}")
 
 
