@@ -1,5 +1,10 @@
 # Chinese Cabbage Yellow-Heart Phenotyping
 
+[![CI](https://github.com/ZhaoXinCAAS/ChineseCabbage-YellowHeart-Phenotyping/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ZhaoXinCAAS/ChineseCabbage-YellowHeart-Phenotyping/actions/workflows/ci.yml)
+
+[Data guide](docs/data.md) · [Reproduction commands](#manuscript-reproduction-scripts) ·
+[Contributing](CONTRIBUTING.md) · [Citation](CITATION.cff) · [License](LICENSE)
+
 This repository accompanies the research manuscript on quantitative grading of
 yellow-heart appearance in Chinese cabbage. It covers head-region processing,
 yellow-heart segmentation, color measurements, the Comprehensive Yellow Score
@@ -7,9 +12,17 @@ yellow-heart segmentation, color measurements, the Comprehensive Yellow Score
 
 ## Installation
 
-Use Python 3.13 and install the locked dependencies with `uv sync`. For
-development checks, use `uv sync --extra dev` and run
-`uv run ruff check src tests`, `uv run pyrefly check`, and `uv run pytest`.
+Clone the repository, open a shell in its root, and install the locked
+environment with [uv](https://docs.astral.sh/uv/getting-started/installation/).
+
+```bash
+git clone https://github.com/ZhaoXinCAAS/ChineseCabbage-YellowHeart-Phenotyping.git
+cd ChineseCabbage-YellowHeart-Phenotyping
+uv sync --locked --python 3.13
+```
+
+See [Contributing](CONTRIBUTING.md#local-checks) for the developer environment
+and the checks run by CI.
 
 ## Data and workflow
 
@@ -27,23 +40,26 @@ If starting from raw images, supply the original images and SAM 3 JSON to
 The Git repository includes compact annotated crops for a demo and the existing
 study feature and CYS tables under `full_dataset_tables/`. Upstream raw photos,
 SAM 3 outputs, and the full annotation and expert workbooks are supplied with
-the study dataset. Follow the manuscript's Data and Code Availability statement
-for access (Figshare DOI `10.6084/m9.figshare.33154715`).
+the study archive. See the [data guide](docs/data.md) for the bundled workbooks,
+required study inputs, and archive access.
 
 Run the demo from the repository root using a new output directory.
 
 ```bash
-uv run python scripts/manuscript/segment_yellow_heart.py \
+uv run --locked python scripts/manuscript/segment_yellow_heart.py \
   --input samples_images/results/annotations_head_region \
   --output results/demo/overlays --json-output results/demo/polygons
-uv run python scripts/manuscript/extract_color_features.py \
+uv run --locked python scripts/manuscript/extract_color_features.py \
   --input results/demo/polygons \
   --images samples_images/results/annotations_head_region \
   --output results/demo/features.xlsx
+uv run --locked python scripts/manuscript/calculate_cys.py \
+  --input results/demo/features.xlsx --output results/demo/CYS.xlsx
 ```
 
-The demo checks the image-processing entry points. Use the study cohort and
-archived normalization and grading inputs for the manuscript statistics.
+The demo writes contour overlays, polygon JSON, a feature workbook, and a CYS
+workbook to `results/demo/`. Demo scores use normalization fitted to the demo
+images. Use the study cohort and archived inputs for the manuscript statistics.
 
 Examples of head-region annotations and automated yellow-heart extraction.
 
@@ -68,13 +84,13 @@ checks. Use the commands below for the archived manuscript rules and tables.
 
 The scripts in [`scripts/manuscript/`](scripts/manuscript/) reproduce specific
 analyses reported in the manuscript. Install the repository dependencies with
-`uv sync`, then run the commands from the repository root. Pass inputs and
+`uv sync --locked`, then run the commands from the repository root. Pass inputs and
 outputs explicitly. The paths below are examples relative to the current
 working directory. Place the corresponding study inputs under `data/` or pass
 their actual locations. Full study images and rating workbooks are distributed
 separately.
 
-Run each example as `uv run python scripts/manuscript/<command>`.
+Run each example as `uv run --locked python scripts/manuscript/<command>`.
 
 | Command and arguments | Input and output |
 | --- | --- |
@@ -117,5 +133,11 @@ Run each example as `uv run python scripts/manuscript/<command>`.
 
 ## Citation
 
-If you use this pipeline or data in your research, please cite this repository
-and the Figshare dataset.
+Cite the software using [CITATION.cff](CITATION.cff) or GitHub's **Cite this
+repository** button. Record the commit used (`git rev-parse HEAD`) and cite the
+study data separately using the archive metadata when available.
+
+## License
+
+The software is distributed under the [MIT License](LICENSE). See the
+[data guide](docs/data.md#study-archive) for terms associated with the archive.

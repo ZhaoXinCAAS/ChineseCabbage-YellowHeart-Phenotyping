@@ -1,0 +1,17 @@
+cff-version: "1.2.0"
+message: "If you use this software, please cite it using the metadata below and record the commit used."
+title: "Chinese Cabbage Yellow-Heart Phenotyping"
+type: software
+authors:
+  - given-names: Yiwu
+    family-names: Ouyang
+  - name: ZhaoXinCAAS
+version: "0.2.0"
+repository-code: "https://github.com/ZhaoXinCAAS/ChineseCabbage-YellowHeart-Phenotyping"
+url: "https://github.com/ZhaoXinCAAS/ChineseCabbage-YellowHeart-Phenotyping"
+license: MIT
+keywords:
+  - plant phenotyping
+  - Chinese cabbage
+  - image analysis
+  - yellow-heart grading

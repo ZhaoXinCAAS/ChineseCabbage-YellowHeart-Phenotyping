@@ -15,6 +15,7 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       MPLBACKEND: Agg
     steps:
@@ -34,13 +35,13 @@ jobs:
           sudo apt-get install --yes libgl1 libglib2.0-0
 
       - name: Install the project with dev tools
-        run: uv sync --extra dev --python 3.13
+        run: uv sync --locked --extra dev --python 3.13
 
       - name: Lint
-        run: uv run ruff check src tests
+        run: uv run --locked ruff check src tests
 
       - name: Type check
-        run: uv run pyrefly check
+        run: uv run --locked pyrefly check
 
       - name: Test
-        run: uv run pytest -q
+        run: uv run --locked pytest

@@ -220,4 +220,5 @@ __marimo__/
 # Project-specific: avoid committing the large Figshare full dataset bundle.
 # The Demo subset lives under ./samples_images/ and IS tracked.
 /data/
+/results/
 
