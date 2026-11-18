@@ -19,6 +19,10 @@ head cropping, and manual annotation refinement in X-AnyLabeling. If starting
 from raw images, supply the original images and SAM 3 JSON to `crop-heads`
 with `--input`, `--images`, and `--output` before manual refinement.
 
+<p align="center">
+  <img width="85%" alt="SAM 3 head-region segmentation demonstration" src="https://github.com/user-attachments/assets/2f37b9a9-11a8-4734-aed9-fb5d39ef488f" />
+</p>
+
 The Git repository includes compact annotated crops for a demo and the existing
 study feature and CYS tables under `full_dataset_tables/`. Upstream raw photos,
 SAM 3 outputs, and the full annotation and expert workbooks are supplied with
@@ -39,6 +43,15 @@ uv run python scripts/manuscript/extract_color_features.py \
 
 The demo checks the image-processing entry points. Use the study cohort and
 archived normalization and grading inputs for the manuscript statistics.
+
+Examples of head-region annotations and automated yellow-heart extraction.
+
+<p align="center">
+  <img width="31%" alt="Head annotation and yellow-heart extraction example 1" src="https://github.com/user-attachments/assets/491e65cc-eb52-494b-aa68-cd3a766d9327" />
+  <img width="31%" alt="Head annotation and yellow-heart extraction example 2" src="https://github.com/user-attachments/assets/efe18338-9b2b-43fe-8f9d-ff1cc1ae6141" />
+  <img width="31%" alt="Head annotation and yellow-heart extraction example 3" src="https://github.com/user-attachments/assets/9f7cceca-dcd7-404b-8321-dbfbd9706ac7" />
+</p>
+
 The package-level segmentation and evaluation commands also support engineering
 checks. Use the commands below for the archived manuscript rules and tables.
 
@@ -77,9 +90,9 @@ In particular:
 
 - The archived mask-generation script applies `ExR > 0.15` OR `20 <= b <= 70`
   to the **encoded OpenCV 8-bit** Lab-b channel. This part of the rule corresponds
-  to approximately `-108 <= b* <= -58` after subtracting 128. The manuscript
-  prose describes a positive conventional CIELAB b* interval. On the 1,319
-  retained images, the archived implementation reproduced all 1,319 contour
+  to approximately `-108 <= b* <= -58` after subtracting 128. Section 3.2
+  reports the encoded range. On the 1,319 retained images, the archived
+  implementation reproduced all 1,319 contour
   vertex sequences. None of the 530,514,122 head-region pixels met the encoded
   b-channel criterion, so ExR determined candidate selection on these images.
   Historical extraction uses the head polygon as the area denominator and
@@ -87,15 +100,14 @@ In particular:
   reproduced to floating-point precision by
   `YS = 0.2931 ExR_norm + 0.2595 S_norm + 0.2272 b*_norm + 0.2202 (1 - B_norm)`
   and `CYS = YS × YR`.
-- The manuscript classifier benchmark retains stratified image-level folds
-  for reproducing its table. The package's `baseline-compare` uses
-  accession-grouped folds for evaluating generalization to held-out accessions.
+- The manuscript classifier benchmark uses stratified image-level folds
+  to reproduce Table S2. Images from the same accession may occur in
+  different folds.
 - Preserve the full-precision GMM cut points from the generated workbook when
   grading. The archived 1,319-image run used approximately
-  0.0675848797, 0.1434605076, 0.2327176455, and 0.3764637203. The
-  three-decimal values cited in the manuscript are display values. Using them
-  as cutoffs changes six grades in the archived 1,319-image run. Using the
-  workbook cutoffs gives grade counts 367, 491, 261, 151 and 49. A score equal
+  0.0675848797, 0.1434605076, 0.2327176455, and 0.3764637203. The main text
+  displays the cut points to four decimal places. Grade assignments use the
+  workbook cutoffs, giving counts of 367, 491, 261, 151 and 49. A score equal
   to a cutoff belongs to the lower grade by default. The 150 paired-mask
   grade pairs and 200 expert-image algorithm grades are unchanged.
 - Matching by single-head filename (preserving the head identifier and
