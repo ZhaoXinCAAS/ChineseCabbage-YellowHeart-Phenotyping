@@ -650,10 +650,77 @@ claim follows from these code changes alone.
   (or `--labeled-root`); on the Demo bundle without these folders the script
   exits cleanly with a diagnostic message.
 
+### HPJ manuscript reproduction scripts
+
+The scripts in [`scripts/manuscript/`](scripts/manuscript/) reproduce specific
+analyses from the HPJ revision. Install the repository dependencies with
+`uv sync`, then run the commands from the repository root. Pass inputs and
+outputs explicitly. The paths below are examples relative to the current
+working directory. Place the corresponding study inputs under `data/` or pass
+their actual locations. Full study images and rating workbooks are distributed
+separately.
+
+Run each example as `uv run python scripts/manuscript/<command>`.
+
+| Command and arguments | Input and output |
+| --- | --- |
+| `segment_yellow_heart.py --input data/heads --output results/segmentation/visualizations --json-output results/segmentation/json` | Head-region images and JSON polygons. Writes annotated JSON and contour overlays. |
+| `extract_color_features.py --input results/segmentation/json --images data/heads --output results/features.xlsx` | Yellow-region JSON and original, unmarked images. Writes feature means, yellow-area ratios, and Min–Max normalized values. |
+| `fisher_table3.py --input data/418_FisherScore_roi_10_color_features.xlsx --labels-dir data/Fisher_score_418 --output results/fisher.xlsx` | ROI feature workbook and phenotype subfolders. Writes ranking, direction and weight information. |
+| `classifier_benchmark.py --input data/Fisher_score_LDA_SVM.xlsx --output results/classifier_benchmark.xlsx` | Labeled ten-feature workbook. Writes the five-classifier benchmark for Table S2. |
+| `calculate_cys.py --input results/features.xlsx --output results/CYS.xlsx` | Normalized image features and yellow-area ratio. Reproduces the archived YS/CYS workbook with fixed manuscript weights. |
+| `gmm_cys.py --input data/CYS.xlsx --output-dir results/gmm` | Table with a continuous `CYS` column. Use the archived input for the historical fit or a rebuilt workbook for a new fit. Writes `CYS_GMM_Analysis_Results.xlsx` and the statistical panels for Fig. 5A–C. |
+| `cys_alternative_forms.py --input data/CYS_Add_Geo_Har.xlsx --output results/cys_forms.xlsx` | Workbook with `Yellow_Ratio`, `Yellow_score`, and `CYS`. Writes four CYS formulations. |
+| `cys_form_comparison_table.py --input data/Experts_200_with_All_CYS_Models.xlsx --output results/cys_form_comparison.xlsx` | Workbook with the four formulations and `Final_Grade`. Writes the correlations for Table S4. |
+| `paired_mask_cys.py data/Auto_Manual_YS_YR_CYS_segmentation_metrics_summary.xlsx results/fig6` | Automatic and manual YS/YR/CYS for 150 paired images. Writes Fig. 6 and the Table S6 statistics workbook. Reads unrounded T1–T4 from `results/gmm/CYS_GMM_Analysis_Results.xlsx` by default. Set `--gmm-workbook` to use the archived workbook or another fit, or supply `--thresholds T1 T2 T3 T4` directly. |
+| `expert_agreement.py data/Five_Expert.xlsx results/expert_agreement.xlsx --fisher-features data/418_FisherScore_roi_10_color_features.xlsx` | Five expert ratings and algorithm grades. The optional Fisher feature table adds agreement by image overlap and a per-image membership sheet. |
+| `plot_expert_agreement.py data/Five_Expert.xlsx results/fig7` | Same workbook. Writes the Fig. 7 panels as SVG, PDF and 600-dpi PNG. |
+| `evaluate_paired_segmentation.py data/paired_annotations results/mask_overlap.xlsx` | JSON files carrying both `Yellow_area` and `Yellow_area_manual` polygons, optionally arranged in strata subdirectories. The same command accepts the flat low-light dataset. Writes image-level and grouped IoU/Dice. |
+| `extract_paired_mask_features.py data/reference_annotations data/paired_annotations results/paired_features` | Uses automatic masks in the reference dataset to set the Min–Max ranges, then writes `automatic_mask_features.xlsx` and `manual_mask_features.xlsx`. Score each with `calculate_cys.py`, then pass the scored tables to `paired_mask_cys.py AUTO.xlsx OUT_DIR --manual MANUAL.xlsx`. |
+| `plot_segmentation_ecdf.py data/segmentation_metrics.xlsx results/ecdf` | Per-image IoU with difficulty categories. Writes the stratified ECDF and its descriptive statistics. |
+
+The manuscript scripts preserve their archived analysis rules. The package
+commands described above support the repository's engineering workflow.
+In particular:
+
+- The archived mask-generation script applies `ExR > 0.15` OR `20 <= b <= 70`
+  to the **encoded OpenCV 8-bit** Lab-b channel. This part of the rule corresponds
+  to approximately `-108 <= b* <= -58` after subtracting 128. The manuscript
+  prose describes a positive conventional CIELAB b* interval. On the 1,319
+  retained images, the archived implementation reproduced all 1,319 contour
+  vertex sequences. None of the 530,514,122 head-region pixels met the encoded
+  b-channel criterion, so ExR determined candidate selection on these images.
+  Historical extraction uses the head polygon as the area denominator and
+  omits measurements without a yellow polygon. The archived YS and CYS were
+  reproduced to floating-point precision by
+  `YS = 0.2931 ExR_norm + 0.2595 S_norm + 0.2272 b*_norm + 0.2202 (1 - B_norm)`
+  and `CYS = YS × YR`.
+- The manuscript classifier benchmark retains stratified image-level folds
+  for reproducing its table. The package's `baseline-compare` uses
+  accession-grouped folds for evaluating generalization to held-out accessions.
+- Preserve the full-precision GMM cut points from the generated workbook when
+  grading. The archived 1,319-image run used approximately
+  0.0675848797, 0.1434605076, 0.2327176455, and 0.3764637203. The
+  three-decimal values cited in the manuscript are display values. Using them
+  as cutoffs changes six grades in the archived 1,319-image run. Using the
+  workbook cutoffs gives grade counts 367, 491, 261, 151 and 49. A score equal
+  to a cutoff belongs to the lower grade by default. The 150 paired-mask
+  grade pairs and 200 expert-image algorithm grades are unchanged.
+- Matching by single-head filename (preserving the head identifier and
+  ignoring image extension) identifies 75 expert images used for Fisher
+  weighting and 125 outside that set. The 125-image subset has exact agreement
+  of 88/125, within-one-grade agreement of 122/125 and quadratic-weighted
+  kappa of 0.8493. This subset still comes from the same image collection and
+  may share accessions with the Fisher cohort.
+- For exact reproduction of the archived GMM fit, use its original `CYS.xlsx`
+  input, including the original row order. The original normalized feature
+  workbook and original GMM input have different row orders. A CYS workbook
+  rebuilt from the feature table preserves that table's row order, which can
+  affect initialization and change the fitted cut points.
+
 ## Script migration map
 
-The standalone scripts under `E:\Phenotype_analysis` were consolidated into
-the package as follows.
+Earlier standalone scripts were consolidated into the package as follows.
 
 | Source script | Integrated as | Notes |
 | --- | --- | --- |
