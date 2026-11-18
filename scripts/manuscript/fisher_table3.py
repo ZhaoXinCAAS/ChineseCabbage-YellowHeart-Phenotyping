@@ -192,7 +192,7 @@ def main() -> None:
     print("-" * 80)
 
     for feat_name, score in fisher_scores:
-        direction = "forward" if directions[feat_name] == 1 else "Negative"
+        direction = "Positive" if directions[feat_name] == 1 else "Negative"
 
         weight = weights_dict[feat_name]
 
@@ -213,16 +213,16 @@ def main() -> None:
     output_data = []
 
     for feat_name, score in fisher_scores:
-        direction = "forward" if directions[feat_name] == 1 else "Negative"
+        direction = "Positive" if directions[feat_name] == 1 else "Negative"
 
         weight = weights_dict[feat_name]
 
         output_data.append(
             {
-                "Feature name": feat_name,
-                "Fisher Score": round(float(score), 4),
-                "Positive and negative": direction,
-                "final weight": round(float(weight), 4),
+                "Feature_Name": feat_name,
+                "Fisher_Score": round(float(score), 4),
+                "Response_Direction": direction,
+                "Final_Weight": round(float(weight), 4),
             }
         )
 

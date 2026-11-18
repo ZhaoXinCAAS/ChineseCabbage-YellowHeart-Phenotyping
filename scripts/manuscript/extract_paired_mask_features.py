@@ -116,7 +116,7 @@ def extract_roi_features(img, mask_target, pan_pixel_count, filename):
 
 def parse_image_json(image_path, json_path, require_manual=False):
     """
-    Parse a single image with JSON mark: 
+    Parse a single image with JSON mark:
       - require_manual=False: used for 1319 benchmark set, Just extract Yellow_area
       - require_manual=True : used for 150 control set, Extract simultaneously Yellow_area_manual and Yellow_area
     """

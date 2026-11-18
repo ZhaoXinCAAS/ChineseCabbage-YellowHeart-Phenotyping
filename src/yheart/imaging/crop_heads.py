@@ -28,8 +28,8 @@ from numpy import int32, zeros
 from yheart._typing import AnnotationFile, ShapeRecord
 
 # Default paths for Demo dataset
-DEFAULT_JSON_FOLDER = "./samples_images/results/SAM3_predicted"
-DEFAULT_IMAGE_FOLDER = "./samples_images/results/SAM3_predicted"
+DEFAULT_JSON_FOLDER = "./data/SAM3_predicted"
+DEFAULT_IMAGE_FOLDER = "./data/SAM3_predicted"
 DEFAULT_OUTPUT_DIR = "./samples_images/results/annotations_head_region"
 DEFAULT_EXPAND_RATIO = 0.2
 

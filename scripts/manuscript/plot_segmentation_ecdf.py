@@ -94,7 +94,7 @@ def cliffs_delta(a, b):
 def jt_stat(groups):
     """
     [Repair2]: Jonckheere-Terpstra Statistics(Check for decreasing trends: easy > typical > challenging)
-    When the front group (i) of IoU Greater than the next group (j) accumulated over time. 
+    When the front group (i) of IoU Greater than the next group (j) accumulated over time.
     """
     s = 0.0
     for i in range(len(groups)):

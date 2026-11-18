@@ -67,7 +67,7 @@ def main() -> None:
         X_train_raw, X_test_raw = X[train_idx], X[test_idx]
         y_train, y_test = y[train_idx], y[test_idx]
 
-        # [critical fix]: Fit only on training set Scaler, It is strictly prohibited to cross data into the test set! 
+        # [critical fix]: Fit only on training set Scaler, It is strictly prohibited to cross data into the test set!
         scaler = MinMaxScaler()
         X_train = scaler.fit_transform(X_train_raw)
         X_test = scaler.transform(X_test_raw)
