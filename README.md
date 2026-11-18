@@ -1,6 +1,6 @@
 # Chinese Cabbage Yellow-Heart Phenotyping
 
-This repository accompanies the HPJ manuscript on quantitative grading of
+This repository accompanies the research manuscript on quantitative grading of
 yellow-heart appearance in Chinese cabbage. It covers head-region processing,
 yellow-heart segmentation, color measurements, the Comprehensive Yellow Score
 (CYS), and grading validation.
@@ -15,13 +15,14 @@ development checks, use `uv sync --extra dev` and run
 
 The manuscript scripts start from head images with polygon annotations.
 The upstream acquisition workflow uses SAM 3 with the text prompt `cabbage`,
-head cropping, and manual annotation refinement in X-AnyLabeling. If starting
-from raw images, supply the original images and SAM 3 JSON to `crop-heads`
-with `--input`, `--images`, and `--output` before manual refinement.
+head cropping, and manual annotation refinement in X-AnyLabeling.
 
 <p align="center">
-  <img width="85%" alt="SAM 3 head-region segmentation demonstration" src="https://github.com/user-attachments/assets/2f37b9a9-11a8-4734-aed9-fb5d39ef488f" />
+  <img width="85%" alt="Yeqiu_predict" src="https://github.com/user-attachments/assets/2f37b9a9-11a8-4734-aed9-fb5d39ef488f" />
 </p>
+
+If starting from raw images, supply the original images and SAM 3 JSON to
+`crop-heads` with `--input`, `--images`, and `--output` before manual refinement.
 
 The Git repository includes compact annotated crops for a demo and the existing
 study feature and CYS tables under `full_dataset_tables/`. Upstream raw photos,
@@ -46,19 +47,27 @@ archived normalization and grading inputs for the manuscript statistics.
 
 Examples of head-region annotations and automated yellow-heart extraction.
 
-<p align="center">
-  <img width="31%" alt="Head annotation and yellow-heart extraction example 1" src="https://github.com/user-attachments/assets/491e65cc-eb52-494b-aa68-cd3a766d9327" />
-  <img width="31%" alt="Head annotation and yellow-heart extraction example 2" src="https://github.com/user-attachments/assets/efe18338-9b2b-43fe-8f9d-ff1cc1ae6141" />
-  <img width="31%" alt="Head annotation and yellow-heart extraction example 3" src="https://github.com/user-attachments/assets/9f7cceca-dcd7-404b-8321-dbfbd9706ac7" />
-</p>
+<table border="0">
+  <tr>
+    <td width="33%" align="center" valign="middle">
+      <img height="250px" src="https://github.com/user-attachments/assets/491e65cc-eb52-494b-aa68-cd3a766d9327" alt="Yeqiu_predict_3" />
+    </td>
+    <td width="33%" align="center" valign="middle">
+      <img height="250px" src="https://github.com/user-attachments/assets/efe18338-9b2b-43fe-8f9d-ff1cc1ae6141" alt="Yeqiu_predict_2" />
+    </td>
+    <td width="33%" align="center" valign="middle">
+      <img height="250px" src="https://github.com/user-attachments/assets/9f7cceca-dcd7-404b-8321-dbfbd9706ac7" alt="Yeqiu_predict_1" />
+    </td>
+  </tr>
+</table>
 
 The package-level segmentation and evaluation commands also support engineering
 checks. Use the commands below for the archived manuscript rules and tables.
 
-## HPJ manuscript reproduction scripts
+## Manuscript reproduction scripts
 
 The scripts in [`scripts/manuscript/`](scripts/manuscript/) reproduce specific
-analyses from the HPJ revision. Install the repository dependencies with
+analyses reported in the manuscript. Install the repository dependencies with
 `uv sync`, then run the commands from the repository root. Pass inputs and
 outputs explicitly. The paths below are examples relative to the current
 working directory. Place the corresponding study inputs under `data/` or pass
@@ -84,43 +93,27 @@ Run each example as `uv run python scripts/manuscript/<command>`.
 | `extract_paired_mask_features.py data/reference_annotations data/paired_annotations results/paired_features` | Uses automatic masks in the reference dataset to set the Min–Max ranges, then writes `automatic_mask_features.xlsx` and `manual_mask_features.xlsx`. Score each with `calculate_cys.py`, then pass the scored tables to `paired_mask_cys.py AUTO.xlsx OUT_DIR --manual MANUAL.xlsx`. |
 | `plot_segmentation_ecdf.py data/segmentation_metrics.xlsx results/ecdf` | Per-image IoU with difficulty categories. Writes the stratified ECDF and its descriptive statistics. |
 
-The manuscript scripts preserve their archived analysis rules. The package
-commands described above support the repository's engineering workflow.
-In particular:
+### Reproduction notes
 
-- The archived mask-generation script applies `ExR > 0.15` OR `20 <= b <= 70`
-  to the **encoded OpenCV 8-bit** Lab-b channel. This part of the rule corresponds
-  to approximately `-108 <= b* <= -58` after subtracting 128. Section 3.2
-  reports the encoded range. On the 1,319 retained images, the archived
-  implementation reproduced all 1,319 contour
-  vertex sequences. None of the 530,514,122 head-region pixels met the encoded
-  b-channel criterion, so ExR determined candidate selection on these images.
-  Historical extraction uses the head polygon as the area denominator and
-  omits measurements without a yellow polygon. The archived YS and CYS were
-  reproduced to floating-point precision by
-  `YS = 0.2931 ExR_norm + 0.2595 S_norm + 0.2272 b*_norm + 0.2202 (1 - B_norm)`
-  and `CYS = YS × YR`.
-- The manuscript classifier benchmark uses stratified image-level folds
-  to reproduce Table S2. Images from the same accession may occur in
-  different folds.
-- Preserve the full-precision GMM cut points from the generated workbook when
-  grading. The archived 1,319-image run used approximately
-  0.0675848797, 0.1434605076, 0.2327176455, and 0.3764637203. The main text
-  displays the cut points to four decimal places. Grade assignments use the
-  workbook cutoffs, giving counts of 367, 491, 261, 151 and 49. A score equal
-  to a cutoff belongs to the lower grade by default. The 150 paired-mask
-  grade pairs and 200 expert-image algorithm grades are unchanged.
-- Matching by single-head filename (preserving the head identifier and
-  ignoring image extension) identifies 75 expert images used for Fisher
-  weighting and 125 outside that set. The 125-image subset has exact agreement
-  of 88/125, within-one-grade agreement of 122/125 and quadratic-weighted
-  kappa of 0.8493. This subset still comes from the same image collection and
-  may share accessions with the Fisher cohort.
-- For exact reproduction of the archived GMM fit, use its original `CYS.xlsx`
-  input, including the original row order. The original normalized feature
-  workbook and original GMM input have different row orders. A CYS workbook
-  rebuilt from the feature table preserves that table's row order, which can
-  affect initialization and change the fitted cut points.
+- The archived mask workflow uses ExR and the encoded OpenCV Lab `b` channel.
+  See `scripts/manuscript/segment_yellow_heart.py` for the exact criteria. The
+  filled head polygon is the area-ratio denominator. Use the generated feature
+  workbook and `CYS.xlsx` to inspect the per-image measurements and scores.
+- The classifier benchmark reproduces Table S2 using stratified image-level
+  folds. Images from the same accession may occur in different folds. See the
+  generated `classifier_benchmark.xlsx` for the results.
+- For the historical GMM fit, use the archived GMM input `CYS.xlsx` in its
+  original row order. A workbook rebuilt from the feature table can have a
+  different row order, which can affect initialization. Use the stored values
+  in the `GMM_thresholds` sheet of `CYS_GMM_Analysis_Results.xlsx` for grading.
+  A score equal to a cut point belongs to the lower grade. See `Grade_summary`
+  in the same workbook for the grade counts.
+- See the paired-mask output workbook for mask agreement and grade changes.
+  In the expert agreement output workbook, `Fisher_Overlap` reports agreement
+  by overlap status and `Fisher_Overlap_Images` records per-image membership.
+  Matching uses the single-head filename, including the head identifier and
+  ignoring the extension. Images outside the Fisher set still come from the
+  same collection and may share accessions with that set.
 
 ## Citation
 

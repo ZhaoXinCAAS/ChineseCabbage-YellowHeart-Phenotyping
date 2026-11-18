@@ -12,7 +12,7 @@ import pandas as pd
 
 def calculate_alternative_cys(file_path: Path, output_path: Path) -> None:
     print("\n" + "=" * 65)
-    print("       HPJ | ALTERNATIVE CYS MODEL CALCULATION")
+    print("       ALTERNATIVE CYS MODEL CALCULATION")
     print("=" * 65)
 
     print(f"\nReading file: {file_path.name}")

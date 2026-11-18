@@ -89,7 +89,7 @@ PIE_COLORS = [
 
 # Confusion matrix color gradient
 CMAP = LinearSegmentedColormap.from_list(
-    "HPJ_Blue",
+    "Agreement_Blue",
     [
         "#F3F6F9",
         "#DCE7EF",
@@ -257,7 +257,7 @@ def main():
     # --------------------------------------------------------
 
     print("\n" + "=" * 65)
-    print("HPJ | FIVE-EXPERT CYS VALIDATION")
+    print("FIVE-EXPERT CYS VALIDATION")
     print("=" * 65)
 
     print("\nLoading Excel data...")

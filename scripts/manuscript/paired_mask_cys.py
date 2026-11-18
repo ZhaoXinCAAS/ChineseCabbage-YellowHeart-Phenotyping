@@ -352,7 +352,7 @@ def main():
     plot_violin_raincloud(ax_b, contributions, np.random.default_rng(SEED))
 
     # (C) Fixed-cutpoint grading confusion matrix.
-    cmap = LinearSegmentedColormap.from_list('hpj_blue',
+    cmap = LinearSegmentedColormap.from_list('grade_blue',
         ['#F3F6F8', '#D5E3EC', '#94B8CC', '#477B9B', '#1F4B76'])
     im = ax_c.imshow(cm, cmap=cmap, vmin=0, vmax=max(1,int(cm.max())),
                      interpolation='nearest', aspect='equal')
