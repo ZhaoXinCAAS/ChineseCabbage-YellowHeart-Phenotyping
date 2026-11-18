@@ -77,8 +77,21 @@ Examples of head-region annotations and automated yellow-heart extraction.
   </tr>
 </table>
 
-The package-level segmentation and evaluation commands also support engineering
-checks. Use the commands below for the archived manuscript rules and tables.
+### Choose a workflow
+
+Use the scripts in `scripts/manuscript/` with the study inputs to reproduce the
+paper's rules and reported outputs. The installed commands run the reusable
+package workflows. Related entry points can differ in how they handle masks,
+normalization or grading defaults.
+
+| Task | Manuscript script in `scripts/manuscript/` | Installed package command |
+| --- | --- | --- |
+| Yellow-heart segmentation | `segment_yellow_heart.py` | `uv run --locked segment-yellow-heart` |
+| Color feature extraction | `extract_color_features.py` | `uv run --locked extract-color-features` |
+| Fisher weighting | `fisher_scores_table.py` | `uv run --locked fisher-scores` |
+| CYS calculation | `calculate_cys.py` | `uv run --locked cys-compute` |
+| GMM grading | `gmm_cys.py` | `uv run --locked gmm-cys` |
+| Mask agreement | `evaluate_paired_segmentation.py` | `uv run --locked evaluate-segmentation` |
 
 ## Manuscript reproduction scripts
 
@@ -96,7 +109,7 @@ Run each example as `uv run --locked python scripts/manuscript/<command>`.
 | --- | --- |
 | `segment_yellow_heart.py --input data/heads --output results/segmentation/visualizations --json-output results/segmentation/json` | Head-region images and JSON polygons. Writes annotated JSON and contour overlays. |
 | `extract_color_features.py --input results/segmentation/json --images data/heads --output results/features.xlsx` | Yellow-region JSON and original, unmarked images. Writes feature means, yellow-area ratios, and Min–Max normalized values. |
-| `fisher_table3.py --input data/418_FisherScore_roi_10_color_features.xlsx --labels-dir data/Fisher_score_418 --output results/fisher.xlsx` | ROI feature workbook and phenotype subfolders. Writes ranking, direction and weight information. |
+| `fisher_scores_table.py --input data/418_FisherScore_roi_10_color_features.xlsx --labels-dir data/Fisher_score_418 --output results/fisher.xlsx` | ROI feature workbook and phenotype subfolders. Writes ranking, direction and weight information. |
 | `classifier_benchmark.py --input data/Fisher_score_LDA_SVM.xlsx --output results/classifier_benchmark.xlsx` | Labeled ten-feature workbook. Writes the five-classifier benchmark for Table S2. |
 | `calculate_cys.py --input results/features.xlsx --output results/CYS.xlsx` | Normalized image features and yellow-area ratio. Reproduces the archived YS/CYS workbook with fixed manuscript weights. |
 | `gmm_cys.py --input data/CYS.xlsx --output-dir results/gmm` | Table with a continuous `CYS` column. Use the archived input for the historical fit or a rebuilt workbook for a new fit. Writes `CYS_GMM_Analysis_Results.xlsx` and the statistical panels for Fig. 5A–C. |
