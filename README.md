@@ -46,17 +46,21 @@ a quick demo.
 
 ### Demo dataset layout (`./samples_images/`)
 
+The upstream demo assets (`Raw_images/`, `SAM3_predicted/` and the legacy
+`samples_images/Data/`) are intentionally **not bundled**: they were archived
+out of the Git history to keep the repository lightweight. Download the full
+Figshare dataset if you need to reproduce steps 1–3. The bundled demo starts
+at the annotated head crops and runs steps 4, 6, 7, 9 and 10 out of the box.
+
 ```
 samples_images/
 └── results/
-    ├── Raw_images/                 # step 1: original cross-section photos
-    ├── SAM3_predicted/             # step 1: SAM 3 masks + JSON
-    ├── annotations_head_region/   # steps 2–3: cropped heads + head-region JSON
+    ├── annotations_head_region/   # steps 2–3 output: cropped heads + head-region JSON
     ├── Auto_segment_Yellow_heart/  # step 4: segmented yellow-heart output
     │   ├── json/                   #       (images + Yellow_area JSON used by step 6)
     │   ├── Head_region_label/
     │   └── Visualization/
-    └── Plot/                       # steps 9–10: GMM & heritability figures
+    └── robustness_summary.csv     # step 10 robustness self-check
 ```
 
 ## Requirements
@@ -99,8 +103,8 @@ high-throughput extraction of leaf-heading region masks from cross-section
 images.
 * **Tools & Models**: The pre-trained ONNX model files and X-AnyLabeling
   executable software are provided in `./data/SAM3_onnx/`.
-* **Input**: `./samples_images/results/Raw_images/` (Demo) | `./data/Raw_images/` (Full Dataset)
-* **Output**: `./samples_images/results/SAM3_predicted/` (Demo) | `./data/SAM3_predicted/` (Full Dataset)
+* **Input**: `./data/Raw_images/` (Full Dataset; the Demo copy was archived out of Git history)
+* **Output**: `./data/SAM3_predicted/` (Full Dataset; the Demo copy was archived out of Git history)
 
 <p align="center">
   <img width="85%" alt="Yeqiu_predict" src="https://github.com/user-attachments/assets/2f37b9a9-11a8-4734-aed9-fb5d39ef488f" />
@@ -121,7 +125,7 @@ crop-heads \
   --output ./data/annotations_head_region
 ```
 
-* **Input**: `./samples_images/results/SAM3_predicted/` (Demo) | `./data/SAM3_predicted/` (Full Dataset)
+* **Input**: `./data/SAM3_predicted/` (Full Dataset; the Demo copy was archived out of Git history)
 * **Output**: `./samples_images/results/annotations_head_region/` (Demo) | `./data/annotations_head_region/` (Full Dataset)
 
 ## 3. Manual Annotation of Chinese cabbage head region
