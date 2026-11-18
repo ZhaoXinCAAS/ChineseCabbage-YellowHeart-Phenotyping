@@ -103,7 +103,7 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     print("=" * 60)
-    print("ReadingROIFeature data...")
+    print("ReadingROIFeature data..")
 
     df_roi = pd.read_excel(args.input)
 
@@ -111,7 +111,7 @@ def main() -> None:
 
     # -------------------------- 2. Automatically match tags --------------------------
 
-    print("\nMatching tags...")
+    print("\nMatching tags..")
 
     df_roi["label"] = df_roi["filename"].apply(
         lambda x: get_label_from_filename(x, args.labels_dir)
@@ -120,11 +120,11 @@ def main() -> None:
     # Statistical label distribution
     label_counts = df_roi["label"].value_counts()
 
-    print(f"Label distribution:\n{label_counts}")
+    print(f"Label distribution: \n{label_counts}")
 
     if df_roi["label"].isna().any():
         print(
-            f"warning:Yes {df_roi['label'].isna().sum()} " "samples did not match the label,will be excluded"
+            f"warning: Yes {df_roi['label'].isna().sum()} " "samples did not match the label, will be excluded"
         )
 
     # Filter labeled samples
@@ -135,11 +135,11 @@ def main() -> None:
         raise ValueError(
             f"Missing phenotype classes in labeled data: {sorted(missing_labels)}"
         )
-    print(f"used forFisherThe number of valid samples analyzed:{len(df_fisher)}")
+    print(f"used forFisherThe number of valid samples analyzed: {len(df_fisher)}")
 
     # -------------------------- 3. Feature normalization --------------------------
 
-    print("\nStandardizing features...")
+    print("\nStandardizing features..")
 
     X_fisher = df_fisher[FEATURES].values
     y_fisher = df_fisher["label"].values
@@ -150,13 +150,13 @@ def main() -> None:
 
     # -------------------------- 4. CalculateFisherdiscriminant score --------------------------
 
-    print("\nCalculatingFisherdiscriminant score...")
+    print("\nCalculatingFisherdiscriminant score..")
 
     fisher_scores = fisher_score_multi_class(X_fisher_scaled, y_fisher, FEATURES)
 
     # -------------------------- 5. Determine the positive and negative directions of features --------------------------
 
-    print("\nDetermining the positive and negative directions of features...")
+    print("\nDetermining the positive and negative directions of features..")
 
     directions = get_feature_directions(
         X_fisher_scaled, y_fisher, FEATURES, LABEL_ORDER
@@ -178,7 +178,7 @@ def main() -> None:
 
     print("\n" + "=" * 80)
 
-    print("Features Fisher discriminant score,Positive and negative directions and final weight results:")
+    print("Features Fisher discriminant score, Positive and negative directions and final weight results: ")
 
     print("-" * 80)
 
@@ -207,7 +207,7 @@ def main() -> None:
 
     # -------------------------- 8. saveFisherAnalyze the results toExcel --------------------------
 
-    print("\nSavingFisherAnalyze the results toExcel...")
+    print("\nSavingFisherAnalyze the results toExcel..")
 
     # Organize data in the order displayed on the terminal
     output_data = []
@@ -243,13 +243,13 @@ def main() -> None:
 
     print("=" * 80)
 
-    print(f"Number of samples analyzed:{len(df_fisher)}")
+    print(f"Number of samples analyzed: {len(df_fisher)}")
 
-    print(f"Number of features:{len(FEATURES)}")
+    print(f"Number of features: {len(FEATURES)}")
 
-    print(f"Excelsave path:{args.output}")
+    print(f"Excelsave path: {args.output}")
 
-    print("\nPreview of saved results:")
+    print("\nPreview of saved results: ")
 
     print(results_df.to_string(index=False))
 

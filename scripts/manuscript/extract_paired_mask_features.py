@@ -26,7 +26,7 @@ COLOR_FEATURES = [
 # ---------------------- Auxiliary algorithm function ----------------------
 
 def round_and_clip_polygon(points, w, h):
-    """Clipping polygon coordinates to image boundaries and converting to integers,Prevent out of bounds when filling mask"""
+    """Clipping polygon coordinates to image boundaries and converting to integers, Prevent out of bounds when filling mask"""
     pts = []
     for p in points:
         if not (isinstance(p, (list, tuple)) and len(p) >= 2):
@@ -40,7 +40,7 @@ def round_and_clip_polygon(points, w, h):
     return np.array(pts, dtype=np.int32)
 
 def circular_mean_degrees(h_vals_0_179):
-    """Calculate HSV in H Circular mean of channel,prevent 0/360degree mean error around"""
+    """Calculate HSV in H Circular mean of channel, prevent 0/360degree mean error around"""
     if len(h_vals_0_179) == 0:
         return float("nan")
     deg = np.asarray(h_vals_0_179, dtype=np.float64) * 2.0
@@ -56,7 +56,7 @@ def circular_mean_degrees(h_vals_0_179):
     return float(mean_deg)
 
 def mean_safe(arr):
-    """Safe calculation of array mean,ignore NaN and data other than finite values"""
+    """Safe calculation of array mean, ignore NaN and data other than finite values"""
     a = np.asarray(arr, dtype=np.float64)
     if a.size == 0:
         return float("nan")
@@ -73,7 +73,7 @@ def compute_ExR_mean(R, G, B):
     return mean_safe(ExR)
 
 def extract_roi_features(img, mask_target, pan_pixel_count, filename):
-    """Given a binary mask,Extract the pixel area ratio of the mask area and10item color features"""
+    """Given a binary mask, Extract the pixel area ratio of the mask area and10item color features"""
     coords = np.where(mask_target == 255)
     target_pixel_count = int(len(coords[0]))
     if target_pixel_count == 0:
@@ -116,9 +116,9 @@ def extract_roi_features(img, mask_target, pan_pixel_count, filename):
 
 def parse_image_json(image_path, json_path, require_manual=False):
     """
-    Parse a single image with JSON mark:
-      - require_manual=False: used for 1319 benchmark set,Just extract Yellow_area
-      - require_manual=True : used for 150 control set,Extract simultaneously Yellow_area_manual and Yellow_area
+    Parse a single image with JSON mark: 
+      - require_manual=False: used for 1319 benchmark set, Just extract Yellow_area
+      - require_manual=True : used for 150 control set, Extract simultaneously Yellow_area_manual and Yellow_area
     """
     img = cv2.imdecode(np.fromfile(str(image_path), dtype=np.uint8), cv2.IMREAD_COLOR)
     if img is None:
@@ -165,7 +165,7 @@ def parse_image_json(image_path, json_path, require_manual=False):
 # ---------------------- Normalization and preservation functions ----------------------
 
 def apply_scaler_and_save(df, fitted_scaler, output_xlsx, dataset_name):
-    """Use global fitting Scaler execute transform,And output in the established column order Excel"""
+    """Use global fitting Scaler execute transform, And output in the established column order Excel"""
     normalized_data = fitted_scaler.transform(df[COLOR_FEATURES])
 
     for i, col_name in enumerate(COLOR_FEATURES):
@@ -179,7 +179,7 @@ def apply_scaler_and_save(df, fitted_scaler, output_xlsx, dataset_name):
 
     Path(output_xlsx).parent.mkdir(parents=True, exist_ok=True)
     df[final_cols].to_excel(output_xlsx, index=False)
-    print(f"[{dataset_name}] total {len(df)} records,Saved to:\n   {output_xlsx}")
+    print(f"[{dataset_name}] total {len(df)} records, Saved to: \n   {output_xlsx}")
 
 # ---------------------- Main control process ----------------------
 
@@ -190,13 +190,13 @@ def main():
     parser.add_argument("output_dir", type=Path, help="Directory for the two feature workbooks.")
     args = parser.parse_args()
 
-    # ==================== first step:Traverse 1319 Folder fitting global extrema ====================
+    # ==================== first step: Traverse 1319 Folder fitting global extrema ====================
     base_p = args.reference_dir
     if not base_p.exists():
         raise FileNotFoundError(f"not found1319Full folder path: {base_p}")
 
     base_files = sorted([p for p in base_p.iterdir() if p.suffix.lower() in VALID_EXTS])
-    print(f"[1/3] scan 1319 Full folder,Found in total {len(base_files)} images,Start extracting global baseline features...")
+    print(f"[1/3] scan 1319 Full folder, Found in total {len(base_files)} images, Start extracting global baseline features..")
 
     base_rows = []
     for idx, img_path in enumerate(base_files, 1):
@@ -207,28 +207,28 @@ def main():
             auto_rec, _ = parse_image_json(str(img_path), str(json_path), require_manual=False)
             base_rows.append(auto_rec)
             if idx % 200 == 0 or idx == len(base_files):
-                print(f"   ...Progress {idx}/{len(base_files)}")
+                print(f"   ..Progress {idx}/{len(base_files)}")
         except Exception as e:
             print(f"   [ERR] {img_path.name} Failed to extract: {e}")
 
     if not base_rows:
-        raise RuntimeError("Never follow 1319 Extract any valid data from the folder,Please check the path or JSON label!")
+        raise RuntimeError("Never follow 1319 Extract any valid data from the folder, Please check the path or JSON label! ")
 
     df_1319 = pd.DataFrame(base_rows)
     global_scaler = MinMaxScaler()
     global_scaler.fit(df_1319[COLOR_FEATURES])
 
-    print(f"\nAlready based on {len(df_1319)} full image [{LABEL_YELLOW_AUTO}] Fit global extremum benchmark (Min / Max):")
+    print(f"\nAlready based on {len(df_1319)} full image [{LABEL_YELLOW_AUTO}] Fit global extremum benchmark (Min / Max): ")
     for idx, feat in enumerate(COLOR_FEATURES):
         print(f"   - {feat:<20}: Min = {global_scaler.data_min_[idx]:.4f}, Max = {global_scaler.data_max_[idx]:.4f}")
 
-    # ==================== Step 2:Traverse 150 Extract double mask features against folders ====================
+    # ==================== Step 2: Traverse 150 Extract double mask features against folders ====================
     paired_p = args.paired_dir
     if not paired_p.exists():
         raise FileNotFoundError(f"not found150Check folder path: {paired_p}")
 
     paired_files = sorted([p for p in paired_p.rglob('*') if p.suffix.lower() in VALID_EXTS])
-    print(f"\n[2/3] scan 150 Check folder,Found in total {len(paired_files)} images,Start synchronously extracting manual and automatic mask features...")
+    print(f"\n[2/3] scan 150 Check folder, Found in total {len(paired_files)} images, Start synchronously extracting manual and automatic mask features..")
 
     manual_150_rows = []
     auto_150_rows   = []
@@ -247,10 +247,10 @@ def main():
             print(f"   [ERR] {img_path.name} Failed to extract: {e}")
 
     if not manual_150_rows:
-        raise RuntimeError("Never follow 150 Extract valid control data from the folder,please check JSON label!")
+        raise RuntimeError("Never follow 150 Extract valid control data from the folder, please check JSON label! ")
 
-    # ==================== Step 3:For unified use 1319 Global benchmark normalization and saving ====================
-    print(f"\n[3/3] in use 1319 global benchmark pair {len(manual_150_rows)} Group paired samples perform normalization...")
+    # ==================== Step 3: For unified use 1319 Global benchmark normalization and saving ====================
+    print(f"\n[3/3] in use 1319 global benchmark pair {len(manual_150_rows)} Group paired samples perform normalization..")
     df_manual_150 = pd.DataFrame(manual_150_rows)
     df_auto_150   = pd.DataFrame(auto_150_rows)
 
@@ -258,7 +258,7 @@ def main():
     apply_scaler_and_save(df_auto_150,   global_scaler, args.output_dir / "automatic_mask_features.xlsx",   f"automatic mask ({LABEL_YELLOW_AUTO})")
 
     print("\n" + "=" * 65)
-    print("All processing completed!Manual and automatic mask data aligned 1319 All extreme value benchmarks and exported separately.")
+    print("All processing completed! Manual and automatic mask data aligned 1319 All extreme value benchmarks and exported separately. ")
     print("=" * 65)
 
 if __name__ == "__main__":

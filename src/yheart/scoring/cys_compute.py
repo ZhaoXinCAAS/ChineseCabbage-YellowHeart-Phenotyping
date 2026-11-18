@@ -69,9 +69,9 @@ def load_fisher_weight_table(path: str) -> dict[str, tuple[float, int]]:
     for position, (_, row) in enumerate(df.iterrows()):
         weight = cast(float, row[weight_col])
         direction = str(row[direction_col])
-        if "Nega" in direction or "-" in direction or "Negative" in direction:
+        if "Nega" in direction or "-" in direction or "\u8d1f" in direction:
             sign = -1
-        elif "Posi" in direction or "+" in direction or "Right" in direction:
+        elif "Posi" in direction or "+" in direction or "\u6b63" in direction:
             sign = 1
         else:
             sign = 1 if weight >= 0 else -1

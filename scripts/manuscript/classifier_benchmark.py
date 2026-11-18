@@ -26,7 +26,7 @@ def main() -> None:
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    print(f"Reading data: {args.input} ...")
+    print(f"Reading data: {args.input} ..")
     df = pd.read_excel(args.input)
 
     # 2. Extract features and labels
@@ -62,12 +62,12 @@ def main() -> None:
     skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
     results = {name: {"acc": [], "f1": []} for name in models.keys()}
 
-    print("Running five-fold stratified cross-validation with fold-local scaling...")
+    print("Running five-fold stratified cross-validation with fold-local scaling..")
     for fold, (train_idx, test_idx) in enumerate(skf.split(X, y), 1):
         X_train_raw, X_test_raw = X[train_idx], X[test_idx]
         y_train, y_test = y[train_idx], y[test_idx]
 
-        # [critical fix]:Fit only on training set Scaler,It is strictly prohibited to cross data into the test set!
+        # [critical fix]: Fit only on training set Scaler, It is strictly prohibited to cross data into the test set! 
         scaler = MinMaxScaler()
         X_train = scaler.fit_transform(X_train_raw)
         X_test = scaler.transform(X_test_raw)

@@ -15,7 +15,7 @@ def calculate_alternative_cys(file_path: Path, output_path: Path) -> None:
     print("       HPJ | ALTERNATIVE CYS MODEL CALCULATION")
     print("=" * 65)
 
-    print(f"\nReading file:{file_path.name}")
+    print(f"\nReading file: {file_path.name}")
 
     df = pd.read_excel(file_path)
     df.columns = df.columns.astype(str).str.strip()
@@ -24,19 +24,19 @@ def calculate_alternative_cys(file_path: Path, output_path: Path) -> None:
     # 3. Confirm data column
     # =====================================================
 
-    YR_COL = "Yellow_Ratio"  # BColumn:YR
-    YS_COL = "Yellow_score"  # LColumn:YS
-    CYS_COL = "CYS"  # MColumn:original multiplicative model
+    YR_COL = "Yellow_Ratio"  # BColumn: YR
+    YS_COL = "Yellow_score"  # LColumn: YS
+    CYS_COL = "CYS"  # MColumn: original multiplicative model
 
     required_cols = [YR_COL, YS_COL, CYS_COL]
 
     missing = [col for col in required_cols if col not in df.columns]
 
     if missing:
-        raise ValueError(f"ExcelRequired column is missing in:{missing}")
+        raise ValueError(f"ExcelRequired column is missing in: {missing}")
 
     # =====================================================
-    # 4. Extract YR,YS and original CYS
+    # 4. Extract YR, YS and original CYS
     # =====================================================
 
     yr = pd.to_numeric(df[YR_COL], errors="coerce")
@@ -46,11 +46,11 @@ def calculate_alternative_cys(file_path: Path, output_path: Path) -> None:
     valid = yr.notna() & ys.notna()
 
     if ((yr[valid] < 0) | (ys[valid] < 0)).any():
-        raise ValueError("YRorYSThere is a negative value,Please check the original data first.")
+        raise ValueError("YRorYSThere is a negative value, Please check the original data first. ")
 
-    print(f"\nTotal number of samples:{len(df)}")
-    print(f"Efficiently calculate the number of samples:{valid.sum()}")
-    print(f"Invalid or missing sample number:{(~valid).sum()}")
+    print(f"\nTotal number of samples: {len(df)}")
+    print(f"Efficiently calculate the number of samples: {valid.sum()}")
+    print(f"Invalid or missing sample number: {(~valid).sum()}")
 
     # =====================================================
     # 5. Calculate three alternatives CYS model
@@ -79,7 +79,7 @@ def calculate_alternative_cys(file_path: Path, output_path: Path) -> None:
 
     cys_harmonic.loc[nonzero] = 2 * ys[nonzero] * yr[nonzero] / denominator[nonzero]
 
-    # when YS = 0 And YR = 0 time,Define the harmonic mean as0
+    # when YS = 0 And YR = 0 time, Define the harmonic mean as0
     both_zero = valid & (denominator == 0)
     cys_harmonic.loc[both_zero] = 0.0
 
@@ -87,7 +87,7 @@ def calculate_alternative_cys(file_path: Path, output_path: Path) -> None:
     # 6. Insert the three model results into the original CYS behind
     # =====================================================
 
-    # Delete old calculation results that may already exist,avoid duplicate columns
+    # Delete old calculation results that may already exist, avoid duplicate columns
     alternative_cols = ["CYS_Additive", "CYS_Geometric", "CYS_Harmonic"]
 
     df.drop(
@@ -97,7 +97,7 @@ def calculate_alternative_cys(file_path: Path, output_path: Path) -> None:
     # Locate originalCYSColumn
     insert_position = df.columns.get_loc(CYS_COL) + 1
 
-    # follow N,O,P sequential insertion
+    # follow N, O, P sequential insertion
     df.insert(insert_position, "CYS_Additive", cys_additive)
 
     df.insert(insert_position + 1, "CYS_Geometric", cys_geometric)
@@ -117,16 +117,16 @@ def calculate_alternative_cys(file_path: Path, output_path: Path) -> None:
 
         max_error = differences.max()
 
-        print("\noriginal CYS Consistency check:")
-        print(f"maximum absolute error:{max_error:.12f}")
+        print("\noriginal CYS Consistency check: ")
+        print(f"maximum absolute error: {max_error:.12f}")
 
         if np.allclose(
             cys_original[check_valid], cys_check[check_valid], rtol=1e-7, atol=1e-10
         ):
-            print("result:original CYS with YS × YR consistent.")
+            print("result: original CYS with YS × YR consistent. ")
         else:
-            print("warning:Partially original CYS with YS × YR inconsistent.")
-            print("original CYS Reserved,not covered.")
+            print("warning: Partially original CYS with YS × YR inconsistent. ")
+            print("original CYS Reserved, not covered. ")
 
     # =====================================================
     # 8. save Excel
@@ -143,17 +143,17 @@ def calculate_alternative_cys(file_path: Path, output_path: Path) -> None:
     print("          ALTERNATIVE CYS CALCULATION RESULTS")
     print("=" * 65)
 
-    print("\nAdd new calculated column:")
+    print("\nAdd new calculated column: ")
     for column in alternative_cols:
         print(column)
 
-    print("\nCalculation formula:")
+    print("\nCalculation formula: ")
     print("Multiplicative : YS × YR")
     print("Additive       : 0.5 × (YS + YR)")
     print("Geometric      : sqrt(YS × YR)")
     print("Harmonic       : 2 × YS × YR / (YS + YR)")
 
-    print("\nbefore5Row result preview:")
+    print("\nbefore5Row result preview: ")
 
     preview_cols = [
         "filename",
@@ -173,9 +173,9 @@ def calculate_alternative_cys(file_path: Path, output_path: Path) -> None:
     print("CALCULATION COMPLETED SUCCESSFULLY")
     print("=" * 65)
 
-    print(f"Total number of samples:{len(df)}")
-    print(f"Efficiently calculate the number of samples:{valid.sum()}")
-    print(f"output file:{output_path}")
+    print(f"Total number of samples: {len(df)}")
+    print(f"Efficiently calculate the number of samples: {valid.sum()}")
+    print(f"output file: {output_path}")
 
     print("=" * 65)
 

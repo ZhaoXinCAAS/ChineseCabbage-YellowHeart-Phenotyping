@@ -14,7 +14,7 @@ LABEL_AUTO = "Yellow_area"
 
 
 def get_canvas_size(json_data, json_path):
-    """Get canvas width and height,Prioritize from JSON of imageHeight/imageWidth read,If not, read the picture with the same name or adapt it according to the coordinates"""
+    """Get canvas width and height, Prioritize from JSON of imageHeight/imageWidth read, If not, read the picture with the same name or adapt it according to the coordinates"""
     h = json_data.get("imageHeight")
     w = json_data.get("imageWidth")
     if h and w:
@@ -30,7 +30,7 @@ def get_canvas_size(json_data, json_path):
             if img is not None:
                 return img.shape[:2]
 
-    # If there is no picture,Calculate based on the maximum coordinates of all polygons
+    # If there is no picture, Calculate based on the maximum coordinates of all polygons
     max_x, max_y = 0, 0
     for shape in json_data.get("shapes", []):
         for pt in shape.get("points", []):
@@ -45,7 +45,7 @@ def create_mask_from_shapes(shapes, target_label, height, width):
 
     for shape in shapes:
         raw_label = shape.get("label", "").strip()
-        # Compatible with some software that may contain a confidence suffix when exporting(Such as "Yellow_area 1.00"),Strictly distinguish between manual
+        # Compatible with some software that may contain a confidence suffix when exporting(Such as "Yellow_area 1.00"), Strictly distinguish between manual
         if target_label == LABEL_MANUAL:
             is_match = (raw_label == LABEL_MANUAL or raw_label.startswith(LABEL_MANUAL + " "))
         else:
@@ -60,7 +60,7 @@ def create_mask_from_shapes(shapes, target_label, height, width):
     return mask, matched_count
 
 def compute_iou_dice(mask1, mask2):
-    """Calculate the pixel area of two binary masks,intersection,union,IoU and Dice"""
+    """Calculate the pixel area of two binary masks, intersection, union, IoU and Dice"""
     area1 = int(np.sum(mask1))
     area2 = int(np.sum(mask2))
 
@@ -142,18 +142,18 @@ def main():
         })
         df_summary = pd.DataFrame(summary_rows)
 
-        # write Excel(Contains two worksheets:detailed list + Summary statistics table)
+        # write Excel(Contains two worksheets: detailed list + Summary statistics table)
         args.output.parent.mkdir(parents=True, exist_ok=True)
         with pd.ExcelWriter(args.output, engine="openpyxl") as writer:
             df_detail.to_excel(writer, sheet_name="Per_Image", index=False)
             df_summary.to_excel(writer, sheet_name="Summary_By_Level", index=False)
 
         print("\n" + "=" * 60)
-        print(f"Calculation completed!Results have been saved to:\n{args.output}")
-        print("\nPreview of average indicators for each level:")
+        print(f"Calculation completed! Results have been saved to: \n{args.output}")
+        print("\nPreview of average indicators for each level: ")
         print(df_summary.to_string(index=False))
     else:
-        print("Didn't read any JSON File,Please check if the path is correct.")
+        print("Didn't read any JSON File, Please check if the path is correct. ")
 
 if __name__ == "__main__":
     main()

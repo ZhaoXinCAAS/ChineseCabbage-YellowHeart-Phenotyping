@@ -26,7 +26,7 @@ def calculate_correlations(input_path: Path, output_path: Path) -> None:
     if missing:
         raise ValueError(f"Missing input columns: {missing}")
 
-    # Filter out any rows containing null values,Ensure the accuracy of correlation calculations
+    # Filter out any rows containing null values, Ensure the accuracy of correlation calculations
     df_clean = df[required_columns].dropna()
 
     # Extract human final ratings as baseline (Reference)
@@ -51,20 +51,20 @@ def calculate_correlations(input_path: Path, output_path: Path) -> None:
         # Use scipy.stats.spearmanr Calculate the correlation coefficient and Pvalue
         correlation, p_value = spearmanr(expert_grades, cys_scores)
 
-        # Format P value:if extremely small,Use scientific notation (Such as 7.35e-56)
-        # Format correlation coefficient:Reserve 4 decimal places
+        # Format P value: if extremely small, Use scientific notation (Such as 7.35e-56)
+        # Format correlation coefficient: Reserve 4 decimal places
         results.append(
             {
                 "Model": model_name,
                 "Spearman r_s (Expert)": round(correlation, 4),
-                "P-value": f"{p_value:.2e}",  # Convert to scientific notation format,Keep to two decimal places
+                "P-value": f"{p_value:.2e}",  # Convert to scientific notation format, Keep to two decimal places
             }
         )
 
     # Convert the result to DataFrame
     results_df = pd.DataFrame(results)
 
-    # Print beautiful forms in the terminal,Convenient for you to check and copy directly
+    # Print beautiful forms in the terminal, Convenient for you to check and copy directly
     print("=" * 60)
     print(
         "📊 CYS model comparison: Spearman correlation coefficient calculation results (Spearman's rank correlation)"
